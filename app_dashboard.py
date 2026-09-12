@@ -1002,32 +1002,31 @@ with st.sidebar:
     sim_lon = st.number_input(t["lon"], value=3.05, min_value=-9.0, max_value=12.5, step=0.01)
     run_simulation = st.button(t["run_sim"])
 
-# Base map selection - استخدام خرائط سريعة CartoDB/OpenStreetMap
+# ==========================================
+# 1. تسريع الاستعلامات وتخزينها في الذاكرة (Caching)
+# ==========================================
+@st.cache_data(ttl=600)  # تخزين لمدة 10 دقائق لتخفيف الثقل
+def get_cached_civil_defense_units():
+    return db.get_all_civil_defense_units()
+
+
+# Base map selection - استخدام OpenStreetMap المجاني بالكامل بدون API Key
 map_type = st.radio(
     t["map_type"], 
-    ["🗺️ CartoDB (سريع جداً)", "🗺️ OpenStreetMap (قياسي)"],
+    ["🗺️ OpenStreetMap (مجاني وسريع)"],
     horizontal=True
 )
 
-# إنشاء الخريطة بناءً على النوع المختار
-if "CartoDB" in map_type:
-    m = folium.Map(
-        location=[36.25, 3.05],
-        zoom_start=7,
-        min_zoom=5,
-        max_zoom=19,
-        tiles="CartoDB positron",
-        control_scale=True
-    )
-else:
-    m = folium.Map(
-        location=[36.25, 3.05],
-        zoom_start=7,
-        min_zoom=5,
-        max_zoom=19,
-        tiles="OpenStreetMap",
-        control_scale=True
-    )
+# إنشاء الخريطة باستخدام OpenStreetMap المجاني 100%
+m = folium.Map(
+    location=[36.25, 3.05],
+    zoom_start=7,
+    min_zoom=5,
+    max_zoom=19,
+    tiles="OpenStreetMap",
+    attr="OpenStreetMap Contributors",
+    control_scale=True
+)
 
 # Inject dark glassmorphism CSS for map controls
 dark_map_css = """
@@ -1088,13 +1087,14 @@ if show_ndvi:
 
 # Add Civil Defense Stations (when enabled)
 if show_stations:
-    # Get units from database
-    civil_units = db.get_all_civil_defense_units()
+    # Get units from cache for better performance
+    civil_units = get_cached_civil_defense_units()
     for unit in civil_units:
         folium.Marker(
             location=[unit[3], unit[4]],
             popup=f"🚒 {unit[2]} - {unit[0]} ({unit[1]})",
-            icon=folium.Icon(color="blue", icon="shield")
+            tooltip=unit[2],
+            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
         ).add_to(m)
 
 # Restrict map to Algeria boundaries
@@ -1193,8 +1193,8 @@ legend_html = """
 """
 m.get_root().html.add_child(folium.Element(legend_html))
 
-# folium_static تقوم برسم الخريطة فوراً وبدون أي ثقل أو اختفاء
-folium_static(m, width=1000, height=500)
+# عرض الخريطة بضغط منخفض جداً على السيرفر
+folium_static(m, width=950, height=480)
 
 # ==========================================
 # YOLO Detection Engine
