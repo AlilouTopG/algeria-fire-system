@@ -1005,28 +1005,29 @@ with st.sidebar:
 # ==========================================
 # 1. تسريع الاستعلامات وتخزينها في الذاكرة (Caching)
 # ==========================================
-@st.cache_data(ttl=600)  # تخزين لمدة 10 دقائق لتخفيف الثقل
-def get_cached_civil_defense_units():
-    return db.get_all_civil_defense_units()
+@st.cache_data(ttl=300)  # تخزين لمدة 5 دقائق لتخفيف الثقل
+def get_lightweight_units():
+    try:
+        return db.get_all_civil_defense_units()
+    except Exception:
+        return []
 
 
-# Base map selection - استخدام OpenStreetMap المجاني بالكامل بدون API Key
-map_type = st.radio(
-    t["map_type"], 
-    ["🗺️ OpenStreetMap (مجاني وسريع)"],
-    horizontal=True
-)
-
-# إنشاء الخريطة باستخدام OpenStreetMap المجاني 100%
+# إنشاء الخريطة باستخدام CartoDB positron النظيفة والخالية من الاسماء غير المرغوبة
 m = folium.Map(
-    location=[36.25, 3.05],
-    zoom_start=7,
-    min_zoom=5,
-    max_zoom=19,
-    tiles="OpenStreetMap",
-    attr="OpenStreetMap Contributors",
+    location=[36.75, 3.05],
+    zoom_start=6,
+    tiles="CartoDB positron",
     control_scale=True
 )
+
+# إضافة النقطة السيادية المركزية للقيادة والسيطرة
+folium.Marker(
+    location=[36.75, 3.05],
+    popup="<b>المركز الوطني للقيادة والسيطرة - الجزائر العاصمة</b>",
+    tooltip="National Command Center",
+    icon=folium.Icon(color="red", icon="shield", prefix="fa")
+).add_to(m)
 
 # Inject dark glassmorphism CSS for map controls
 dark_map_css = """
@@ -1087,15 +1088,21 @@ if show_ndvi:
 
 # Add Civil Defense Stations (when enabled)
 if show_stations:
-    # Get units from cache for better performance
-    civil_units = get_cached_civil_defense_units()
-    for unit in civil_units:
-        folium.Marker(
-            location=[unit[3], unit[4]],
-            popup=f"🚒 {unit[2]} - {unit[0]} ({unit[1]})",
-            tooltip=unit[2],
-            icon=folium.Icon(color="blue", icon="shield", prefix="fa")
-        ).add_to(m)
+    # جلب الوحدات بأمان وسرعة فائقة من الذاكرة المؤقتة
+    units = get_lightweight_units()
+    if units:
+        for unit in units:
+            try:
+                # unit = (wilaya, daira_baladia, unit_name, lat, lon, contact_phone)
+                lat, lon = float(unit[3]), float(unit[4])
+                folium.Marker(
+                    location=[lat, lon],
+                    popup=f"🚒 وحدة الحماية المدنية: {unit[2]} ({unit[1]})",
+                    tooltip=unit[2],
+                    icon=folium.Icon(color="blue", icon="shield", prefix="fa")
+                ).add_to(m)
+            except Exception:
+                continue
 
 # Restrict map to Algeria boundaries
 m.fit_bounds([
@@ -1193,8 +1200,8 @@ legend_html = """
 """
 m.get_root().html.add_child(folium.Element(legend_html))
 
-# عرض الخريطة بضغط منخفض جداً على السيرفر
-folium_static(m, width=950, height=480)
+# عرض الخريطة بحد أدنى من الضغط على المتصفح
+folium_static(m, width=950, height=450)
 
 # ==========================================
 # YOLO Detection Engine
