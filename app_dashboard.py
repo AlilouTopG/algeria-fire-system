@@ -776,48 +776,54 @@ init_session_state()
 # ==========================================
 # Login Page - Command Center
 # ==========================================
-if not st.session_state['authenticated']:
-    st.markdown("<h2 style='text-align: center; color: #00f2fe;'>🏛️ بوابة الدخول السيادية - National Command Center</h2>", unsafe_allow_html=True)
+# 1. تهيئة الجلسة بشكل آمن ومباشر في أعلى الملف
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+if "role" not in st.session_state:
+    st.session_state["role"] = None
+
+
+# 2. استخدام .get() الآمنة لعدم إلقاء KeyError مطلقاً
+if not st.session_state.get("authenticated", False):
+    st.markdown("<h2 style='text-align: center; color: #00f2fe;'>🏛️ بوابة الدخول السيادية - Command Center</h2>", unsafe_allow_html=True)
     
     tab_login, tab_signup = st.tabs(["🔐 تسجيل الدخول", "📝 إنشاء حساب جديد"])
     
-    # 1. استمارة تسجيل الدخول المحصنة بـ st.form
     with tab_login:
-        with st.form(key="login_form", clear_on_submit=False):
-            user_in = st.text_input("اسم المستخدم", key="login_user_input")
-            pass_in = st.text_input("كلمة المرور", type="password", key="login_pass_input")
+        with st.form(key="login_form"):
+            user_in = st.text_input("اسم المستخدم")
+            pass_in = st.text_input("كلمة المرور", type="password")
             submit_login = st.form_submit_button("دخول المنظومة")
             
             if submit_login:
                 user_clean = user_in.strip()
                 pass_clean = pass_in.strip()
-                
                 if user_clean and pass_clean:
                     success, role = db.authenticate_user(user_clean, pass_clean)
                     if success:
-                        st.session_state['authenticated'] = True
-                        st.session_state['user'] = user_clean
-                        st.session_state['role'] = role
+                        st.session_state["authenticated"] = True
+                        st.session_state["user"] = user_clean
+                        st.session_state["role"] = role
                         st.success("تم الدخول بنجاح!")
                         st.rerun()
                     else:
                         st.error("اسم المستخدم أو كلمة المرور غير صحيحة")
                 else:
-                    st.warning("يرجى إدخال اسم المستخدم وكلمة المرور!")
+                    st.warning("يرجى ملء جميع الحقول!")
 
 
-    # 2. استمارة إنشاء الحساب المحصنة بـ st.form
     with tab_signup:
-        with st.form(key="signup_form", clear_on_submit=False):
-            new_user = st.text_input("اختر اسم مستخدم جديد", key="signup_user_input")
-            new_pass = st.text_input("اختر كلمة مرور قوية", type="password", key="signup_pass_input")
-            role_sel = st.selectbox("نوع الصلاحية", ["Operator", "Analyst", "Admin"], key="signup_role_input")
+        with st.form(key="signup_form"):
+            new_user = st.text_input("اختر اسم مستخدم جديد")
+            new_pass = st.text_input("اختر كلمة مرور قوية", type="password")
+            role_sel = st.selectbox("نوع الصلاحية", ["Operator", "Analyst", "Admin"])
             submit_signup = st.form_submit_button("حفظ وإنشاء الحساب")
             
             if submit_signup:
                 user_clean = new_user.strip()
                 pass_clean = new_pass.strip()
-                
                 if user_clean and pass_clean:
                     ok, msg = db.register_user(user_clean, pass_clean, role_sel)
                     if ok:
