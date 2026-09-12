@@ -19,6 +19,7 @@ from streamlit_folium import st_folium
 import plotly.express as px
 from fpdf import FPDF
 from geopy.distance import geodesic
+import db_manager as db
 
 # ==========================================
 # Logging Configuration
@@ -113,36 +114,24 @@ def init_db():
         logger.error(f"Database init failed: {e}")
         raise
 
-init_db()
+db.init_db()
 
 # ==========================================
 # Authentication System
 # ==========================================
 def login_user(username: str, password: str) -> dict:
-    """Authenticate user and return user data"""
-    try:
-        db_path = os.getenv('DATABASE_PATH', 'fire_system.db')
-        with sqlite3.connect(db_path) as conn:
-            c = conn.cursor()
-            c.execute(
-                "SELECT password_hash, role, region, full_name FROM users WHERE username = ?",
-                (username,)
-            )
-            result = c.fetchone()
-            
-            if result and verify_password(password, result[0]):
-                logger.info(f"Successful login: {username}")
-                return {
-                    "username": username,
-                    "role": result[1],
-                    "region": result[2],
-                    "full_name": result[3]
-                }
-            else:
-                logger.warning(f"Failed login attempt: {username}")
-                return None
-    except sqlite3.Error as e:
-        logger.error(f"Login query failed: {e}")
+    """Authenticate user and return user data using db_manager"""
+    success, role = db.authenticate_user(username, password)
+    if success:
+        logger.info(f"Successful login: {username}")
+        return {
+            "username": username,
+            "role": role,
+            "region": "ALL" if role == "Admin" else "16_ALGIERS",
+            "full_name": username
+        }
+    else:
+        logger.warning(f"Failed login attempt: {username}")
         return None
 
 def init_session_state():
@@ -968,6 +957,35 @@ else:
         tiles="OpenStreetMap"
     )
 
+# Inject dark glassmorphism CSS for map controls
+dark_map_css = """
+<style>
+.leaflet-control-layers, .leaflet-control-zoom, .leaflet-popup-content-wrapper {
+    background: rgba(13, 17, 23, 0.9) !important;
+    color: #00f2fe !important;
+    border: 1px solid #30363d !important;
+    backdrop-filter: blur(10px) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+}
+.leaflet-popup-tip {
+    background: rgba(13, 17, 23, 0.9) !important;
+}
+.leaflet-control-zoom a {
+    background: rgba(13, 17, 23, 0.9) !important;
+    color: #00f2fe !important;
+    border-color: #30363d !important;
+}
+.leaflet-control-zoom a:hover {
+    background: rgba(0, 242, 254, 0.2) !important;
+}
+.leaflet-container {
+    font-family: 'Cairo', sans-serif !important;
+}
+</style>
+"""
+m.get_root().html.add_child(folium.Element(dark_map_css))
+
 # Click-to-Simulate JavaScript (stores clicked coordinates)
 click_sim_code = """
 <script>
@@ -1077,19 +1095,20 @@ folium.Rectangle(
     popup="حدود الجزائر | Algeria Boundaries"
 ).add_to(m)
 
-# Legend
+# Legend - Dark Glassmorphism Style
 legend_html = """
-<div style="position:fixed; bottom:50px; left:50px; z-index:1000; background:white; padding:10px; border-radius:5px; border:2px solid gray;">
-    <b>دليل الخريطة:</b><br>
-    <i style="color:red">🔥</i> خطر مرتفع<br>
-    <i style="color:orange">🔥</i> خطر متوسط<br>
-    <i style="color:blue">🚒</i> وحدة الحماية المدنية<br>
-    <i style="color:red">---</i> مسار التدخل<br>
-    <hr style="margin:5px 0">
-    <b>محاكاة الانتشار:</b><br>
-    <span style="color:red">■</span> منطقة الخطر العاجل (1 ساعة)<br>
-    <span style="color:orange">■</span> نطاق الإخلاء (3 ساعات)<br>
-    <span style="color:gold">■</span> التهديد الممتد (6 ساعات)
+<div style="position:fixed; bottom:50px; left:50px; z-index:1000; background:rgba(13, 17, 23, 0.9); color:#00f2fe; padding:15px; border-radius:12px; border:1px solid #30363d; backdrop-filter:blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.6); font-family:'Cairo',sans-serif; min-width:180px;">
+    <b style="color:#fff; font-size:14px;">دليل الخريطة</b><br>
+    <hr style="border-color:#30363d; margin:8px 0;">
+    <i style="color:#ff4444">🔥</i> <span style="color:#ff6b6b">خطر مرتفع</span><br>
+    <i style="color:#ffaa00">🔥</i> <span style="color:#ffaa00">خطر متوسط</span><br>
+    <i style="color:#00f2fe">🚒</i> <span style="color:#00f2fe">وحدة الحماية المدنية</span><br>
+    <i style="color:#ff4444">---</i> <span style="color:#ff6b6b">مسار التدخل</span><br>
+    <hr style="border-color:#30363d; margin:8px 0;">
+    <b style="color:#fff; font-size:12px;">محاكاة الانتشار:</b><br>
+    <span style="color:#ff4444">■</span> <span style="color:#ff6b6b">منطقة الخطر العاجل (1 ساعة)</span><br>
+    <span style="color:#ff9800">■</span> <span style="color:#ffaa00">نطاق الإخلاء (3 ساعات)</span><br>
+    <span style="color:#ffd700">■</span> <span style="color:#ffd700">التهديد الممتد (6 ساعات)</span>
 </div>
 """
 m.get_root().html.add_child(folium.Element(legend_html))
