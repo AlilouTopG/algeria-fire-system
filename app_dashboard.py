@@ -1,24 +1,17 @@
 import streamlit as st
 import sqlite3
 import os
-import cv2
-import time
 import logging
 import hashlib
-import secrets
-import math
 import requests
 import pandas as pd
 import io
-import tempfile
 from datetime import datetime
 from dotenv import load_dotenv
-from ultralytics import YOLO
 import folium
 from streamlit_folium import folium_static
 import plotly.express as px
 from fpdf import FPDF
-from geopy.distance import geodesic
 import db_manager as db
 
 # ==========================================
@@ -57,10 +50,12 @@ ALGERIA_BOUNDS = {
 }
 
 # ==========================================
-# Database Initialization
+# Database Initialization (run once only)
 # ==========================================
-db.init_db()
-db.init_civil_defense_table()
+if "db_initialized" not in st.session_state:
+    db.init_db()
+    db.init_civil_defense_table()
+    st.session_state["db_initialized"] = True
 
 # ==========================================
 # Language System (AR / EN)
@@ -453,6 +448,7 @@ with col1:
 with col2:
     st.subheader("📊 أحدث الإنذارات المسجلة | Alert Logs")
     
+    @st.cache_data(ttl=300)
     def get_alerts(region: str) -> list:
         try:
             db_path = os.getenv('DATABASE_PATH', 'fire_system.db')
@@ -487,11 +483,11 @@ with col2:
 st.markdown("---")
 st.subheader("🗺️ خريطة الرصد الجغرافي الوطنية | Algerian Sovereign GIS")
 
-# Create clean map with CartoDB positron (free, no API key needed)
+# Create clean map with OpenStreetMap (100% free, no API key)
 m = folium.Map(
     location=[36.75, 3.05],
     zoom_start=6,
-    tiles="CartoDB positron",
+    tiles="OpenStreetMap",
     control_scale=True
 )
 
@@ -533,7 +529,7 @@ m.get_root().html.add_child(folium.Element(dark_map_css))
 if show_ndvi:
     try:
         folium.TileLayer(
-            tiles="https://tiles(openeo.planet.com/v1/ndvi_viirs/{z}/{x}/{y}.png)",
+            tiles="https://tiles.openeo.planet.com/v1/ndvi_viirs/{z}/{x}/{y}.png",
             attr="NDVI Vegetation Index",
             name="🌿 الغطاء النباتي (NDVI)",
             overlay=True,
@@ -746,6 +742,7 @@ with col_pred2:
 st.markdown("---")
 st.subheader("📈 لوحة التحليلات | Analytics Dashboard")
 
+@st.cache_data(ttl=300)
 def get_all_alerts_for_analytics() -> pd.DataFrame:
     try:
         db_path = os.getenv('DATABASE_PATH', 'fire_system.db')
