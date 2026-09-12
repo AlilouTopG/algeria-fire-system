@@ -3,7 +3,6 @@ import hashlib
 import os
 import secrets
 
-
 DB_NAME = "national_cmd.db"
 
 
@@ -17,16 +16,27 @@ def init_db():
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 salt TEXT NOT NULL,
+                region TEXT DEFAULT 'ALL',
                 role TEXT DEFAULT 'Operator',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS audit_logs (
+            CREATE TABLE IF NOT EXISTS alerts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                action TEXT,
+                region_id TEXT,
+                hazard_type TEXT,
+                confidence REAL,
+                source TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS session_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         conn.commit()
@@ -36,7 +46,6 @@ def init_db():
 
 
 def init_civil_defense_table():
-    """تأسيس جدول وحدات الحماية المدنية للـ 58 ولاية"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute('''
@@ -50,8 +59,15 @@ def init_civil_defense_table():
             contact_phone TEXT DEFAULT '1021'
         )
     ''')
-    
-    # إدخال عينات أولية لولايات شمالية وغابية رائدة (ويمكن التوسع فيها)
+
+    cursor.execute("SELECT COUNT(*) FROM civil_defense_units")
+    count = cursor.fetchone()[0]
+    if count >= 55:
+        conn.close()
+        return
+
+    cursor.execute("DELETE FROM civil_defense_units")
+
     units_sample = [
         ("Algeria", "Alger", "الوحدة الرئيسية للحماية المدنية - الجزائر", 36.7538, 3.0588, "1021"),
         ("Tizi Ouzou", "Tizi Ouzou", "الوحدة الرئيسية - تيزي وزو", 36.7118, 4.0459, "1021"),
@@ -101,14 +117,18 @@ def init_civil_defense_table():
         ("Biskra", "Tolga", "وحدة الحماية المدنية - تولجة", 34.8833, 5.3667, "1021"),
         ("Ghardaia", "Metlili", "وحدة التدخل - متليلي", 32.2500, 3.6333, "1021"),
         ("Bouira", "Sour El Ghozlane", "وحدة الحماية المدنية - سور الغزلان", 36.1000, 3.8833, "1021"),
-        ("M'sila", "Bou Saada", "_UNITSample التدخل - بوسعادة", 35.2167, 4.1833, "1021"),
+        ("M'sila", "Bou Saada", "وحدة التدخل - بوسعادة", 35.2167, 4.1833, "1021"),
         ("Tebessa", "Negrine", "وحدة الحماية المدنية - نقرينة", 35.2500, 8.2667, "1021"),
         ("Constantine", "El Khroub", "وحدة التدخل - الخروب", 36.2500, 6.6833, "1021"),
         ("Mascara", "Tighennif", "وحدة الحماية المدنية - تيغنينف", 35.4167, 0.2667, "1021"),
         ("Guelma", "Bouati Mahmoud", "وحدة التدخل - بوعتي محمود", 36.3333, 7.7500, "1021"),
         ("Tizi Ouzou", "Draa Ben Khedda", "وحدة الحماية المدنية - ذراع بن خدة", 36.7333, 3.9667, "1021"),
-        ("Alger", "Dar El Beida", "وحدة التدخل - الدار البيضاء", 36.7167, 3.2500, "1021")
+        ("Alger", "Dar El Beida", "وحدة التدخل - الدار البيضاء", 36.7167, 3.2500, "1021"),
+        ("Tipaza", "Tipaza", "الوحدة الرئيسية - تيبازة", 36.5897, 2.4484, "1021"),
+        ("Jijel", "Jijel", "الوحدة الرئيسية - جيجل", 36.8211, 5.7667, "1021"),
+        ("Bejaia", "Bejaia", "الوحدة الرئيسية - بجاية", 36.7511, 5.0642, "1021"),
     ]
+
     cursor.executemany("""
         INSERT OR IGNORE INTO civil_defense_units (wilaya, daira_baladia, unit_name, lat, lon, contact_phone)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -118,7 +138,6 @@ def init_civil_defense_table():
 
 
 def get_all_civil_defense_units():
-    """استرجاع كافة الوحدات لإظهارها على الخريطة"""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -144,11 +163,8 @@ def register_user(username, password, role="Operator"):
         pwd_hash, salt = hash_password(password)
         cursor.execute("INSERT INTO users (username, password_hash, salt, role) VALUES (?, ?, ?, ?)",
                        (username.strip(), pwd_hash, salt, role))
-        
-        # تسجيل العملية في Audit Log
-        cursor.execute("INSERT INTO audit_logs (username, action) VALUES (?, ?)",
-                       (username.strip(), f"User Registered with role {role}"))
-        
+        cursor.execute("INSERT INTO alerts (region_id, hazard_type, confidence, source) VALUES (?, ?, ?, ?)",
+                       (username.strip(), f"User Registered: {role}", 0.0, "system"))
         conn.commit()
         conn.close()
         return True, "تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول."
@@ -162,11 +178,10 @@ def authenticate_user(username, password):
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        # استخدام Parameterized Query لمنع SQL Injection وقبول الحالة بأمان
         cursor.execute("SELECT password_hash, salt, role FROM users WHERE LOWER(username) = LOWER(?)", (username.strip(),))
         user = cursor.fetchone()
         conn.close()
-        
+
         if user:
             stored_hash, salt, role = user
             check_hash, _ = hash_password(password.strip(), salt)
@@ -179,14 +194,11 @@ def authenticate_user(username, password):
 
 
 def generate_session_token(username):
-    """توليد رمز جلسة مؤقت لحفظ التسجيل عند Refresh المتصفح"""
     token = secrets.token_hex(16)
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET salt = salt WHERE username = ?", (username,))
-        # حفظ التوكين في جدول audit_logs للاسترجاع السريع
-        cursor.execute("INSERT INTO audit_logs (username, action) VALUES (?, ?)", (username, f"TOKEN:{token}"))
+        cursor.execute("INSERT INTO session_tokens (username, token) VALUES (?, ?)", (username, token))
         conn.commit()
         conn.close()
         return token
@@ -195,11 +207,10 @@ def generate_session_token(username):
 
 
 def verify_session_token(token):
-    """التحقق من صحة التوكين عند إعادة تحميل الصفحة"""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute("SELECT username FROM audit_logs WHERE action = ? ORDER BY id DESC LIMIT 1", (f"TOKEN:{token}",))
+        cursor.execute("SELECT username FROM session_tokens WHERE token = ?", (token,))
         row = cursor.fetchone()
         conn.close()
         if row:
