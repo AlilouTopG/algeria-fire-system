@@ -774,35 +774,42 @@ init_session_state()
 # Login Page - Command Center
 # ==========================================
 if not st.session_state['logged_in']:
-    st.markdown("<h1 style='text-align:center; color:#00f2fe;'>🏛️ المركز الوطني للإنذار المبكر</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#888;'>National Command Center for Early Warning - Algeria</p>", unsafe_allow_html=True)
-    st.markdown("---")
+    st.markdown("<h2 style='text-align: center; color: #00f2fe;'>🏛️ بوابة الدخول السيادية</h2>", unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # تبويبان واضحان للدخول وإنشاء حساب جديد
+    tab_login, tab_signup = st.tabs(["🔐 تسجيل الدخول", "📝 إنشاء حساب جديد"])
     
-    with col2:
-        st.markdown("<h3 style='text-align:center;'>🔐 تسجيل الدخول الآمن | Secure Login</h3>", unsafe_allow_html=True)
-        
-        with st.form("login_form"):
-            username_input = st.text_input("اسم المستخدم | Username", placeholder="admin")
-            password_input = st.text_input("كلمة المرور | Password", type="password", placeholder="••••••••")
-            submit_button = st.form_submit_button("تسجيل الدخول | Login", use_container_width=True)
-            
-            if submit_button:
-                if username_input and password_input:
-                    user_data = login_user(username_input, password_input)
-                    if user_data:
-                        create_session(user_data)
-                        st.success(f"مرحباً {user_data['full_name']}! جاري تحميل المنظومة...")
-                        st.rerun()
-                    else:
-                        st.error("خطأ في بيانات الدخول! يرجى التحقق.")
-                        logger.warning(f"Failed login attempt from user: {username_input}")
+    with tab_login:
+        user_in = st.text_input("اسم المستخدم", key="login_user")
+        pass_in = st.text_input("كلمة المرور", type="password", key="login_pass")
+        if st.button("دخول المنظومة", key="btn_login"):
+            success, role = db.authenticate_user(user_in, pass_in)
+            if success:
+                st.session_state['authenticated'] = True
+                st.session_state['user'] = user_in
+                st.session_state['role'] = role
+                st.success("تم الدخول بنجاح!")
+                st.rerun()
+            else:
+                st.error("اسم المستخدم أو كلمة المرور غير صحيحة")
+
+
+    with tab_signup:
+        new_user = st.text_input("اختر اسم مستخدم جديد", key="signup_user")
+        new_pass = st.text_input("اختر كلمة مرور قوية", type="password", key="signup_pass")
+        role_sel = st.selectbox("نوع الصلاحية", ["Operator", "Analyst", "Admin"], key="signup_role")
+        if st.button("حفظ وإنشاء الحساب", key="btn_signup"):
+            if new_user and new_pass:
+                ok, msg = db.register_user(new_user, new_pass, role_sel)
+                if ok:
+                    st.success(msg)
                 else:
-                    st.warning("يرجى إدخال اسم المستخدم وكلمة المرور")
-        
-        st.info("حسابات افتراضية: admin/admin123 | op_algiers/algiers2026")
-    
+                    st.error(msg)
+            else:
+                st.warning("يرجى ملء جميع الحقول!")
+
+
+    # إيقاف عرض بقية اللوحة حتى يتم تسجيل الدخول
     st.stop()
 
 # ==========================================
