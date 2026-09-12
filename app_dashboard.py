@@ -149,13 +149,16 @@ def create_session(user_data: dict) -> str:
     st.session_state['session_token'] = token
     st.session_state['user'] = user_data
     st.session_state['logged_in'] = True
+    st.session_state['authenticated'] = True
     return token
 
 def logout_user():
     """Clear session data"""
     st.session_state['logged_in'] = False
+    st.session_state['authenticated'] = False
     st.session_state['user'] = None
     st.session_state['session_token'] = None
+    st.session_state['role'] = None
 
 # ==========================================
 # NASA FIRMS Multi-Satellite Constellation Fetcher
