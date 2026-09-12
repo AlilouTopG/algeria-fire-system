@@ -776,43 +776,58 @@ init_session_state()
 # ==========================================
 # Login Page - Command Center
 # ==========================================
-if not st.session_state['logged_in']:
-    st.markdown("<h2 style='text-align: center; color: #00f2fe;'>🏛️ بوابة الدخول السيادية</h2>", unsafe_allow_html=True)
+if not st.session_state['authenticated']:
+    st.markdown("<h2 style='text-align: center; color: #00f2fe;'>🏛️ بوابة الدخول السيادية - National Command Center</h2>", unsafe_allow_html=True)
     
-    # تبويبان واضحان للدخول وإنشاء حساب جديد
     tab_login, tab_signup = st.tabs(["🔐 تسجيل الدخول", "📝 إنشاء حساب جديد"])
     
+    # 1. استمارة تسجيل الدخول المحصنة بـ st.form
     with tab_login:
-        user_in = st.text_input("اسم المستخدم", key="login_user")
-        pass_in = st.text_input("كلمة المرور", type="password", key="login_pass")
-        if st.button("دخول المنظومة", key="btn_login"):
-            success, role = db.authenticate_user(user_in, pass_in)
-            if success:
-                st.session_state['authenticated'] = True
-                st.session_state['user'] = user_in
-                st.session_state['role'] = role
-                st.success("تم الدخول بنجاح!")
-                st.rerun()
-            else:
-                st.error("اسم المستخدم أو كلمة المرور غير صحيحة")
-
-
-    with tab_signup:
-        new_user = st.text_input("اختر اسم مستخدم جديد", key="signup_user")
-        new_pass = st.text_input("اختر كلمة مرور قوية", type="password", key="signup_pass")
-        role_sel = st.selectbox("نوع الصلاحية", ["Operator", "Analyst", "Admin"], key="signup_role")
-        if st.button("حفظ وإنشاء الحساب", key="btn_signup"):
-            if new_user and new_pass:
-                ok, msg = db.register_user(new_user, new_pass, role_sel)
-                if ok:
-                    st.success(msg)
+        with st.form(key="login_form", clear_on_submit=False):
+            user_in = st.text_input("اسم المستخدم", key="login_user_input")
+            pass_in = st.text_input("كلمة المرور", type="password", key="login_pass_input")
+            submit_login = st.form_submit_button("دخول المنظومة")
+            
+            if submit_login:
+                user_clean = user_in.strip()
+                pass_clean = pass_in.strip()
+                
+                if user_clean and pass_clean:
+                    success, role = db.authenticate_user(user_clean, pass_clean)
+                    if success:
+                        st.session_state['authenticated'] = True
+                        st.session_state['user'] = user_clean
+                        st.session_state['role'] = role
+                        st.success("تم الدخول بنجاح!")
+                        st.rerun()
+                    else:
+                        st.error("اسم المستخدم أو كلمة المرور غير صحيحة")
                 else:
-                    st.error(msg)
-            else:
-                st.warning("يرجى ملء جميع الحقول!")
+                    st.warning("يرجى إدخال اسم المستخدم وكلمة المرور!")
 
 
-    # إيقاف عرض بقية اللوحة حتى يتم تسجيل الدخول
+    # 2. استمارة إنشاء الحساب المحصنة بـ st.form
+    with tab_signup:
+        with st.form(key="signup_form", clear_on_submit=False):
+            new_user = st.text_input("اختر اسم مستخدم جديد", key="signup_user_input")
+            new_pass = st.text_input("اختر كلمة مرور قوية", type="password", key="signup_pass_input")
+            role_sel = st.selectbox("نوع الصلاحية", ["Operator", "Analyst", "Admin"], key="signup_role_input")
+            submit_signup = st.form_submit_button("حفظ وإنشاء الحساب")
+            
+            if submit_signup:
+                user_clean = new_user.strip()
+                pass_clean = new_pass.strip()
+                
+                if user_clean and pass_clean:
+                    ok, msg = db.register_user(user_clean, pass_clean, role_sel)
+                    if ok:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+                else:
+                    st.warning("يرجى ملء جميع الحقول!")
+
+
     st.stop()
 
 # ==========================================
