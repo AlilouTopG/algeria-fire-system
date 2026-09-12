@@ -927,7 +927,8 @@ with col2:
             logger.error(f"Alert query failed: {e}")
             return []
     
-    alerts_data = get_alerts(user['region'])
+    user_region = st.session_state.get('user_region', 'ALL')
+    alerts_data = get_alerts(user_region)
     
     if alerts_data:
         st.dataframe(alerts_data, column_config={
@@ -1193,7 +1194,7 @@ if "الكاميرات" in data_source and 'run_detection' in locals() and run_d
                                             c = conn.cursor()
                                             c.execute(
                                                 "INSERT INTO alerts (timestamp, region_id, hazard_type, confidence, source) VALUES (?, ?, ?, ?, ?)",
-                                                (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user['region'], class_name, round(conf, 2), "Live Camera")
+                                                (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), st.session_state.get('user_region', 'ALL'), class_name, round(conf, 2), "Live Camera")
                                             )
                                             conn.commit()
                                             last_alert = curr
@@ -1399,10 +1400,11 @@ with col_pdf2:
         with st.spinner("جاري إنشاء التقرير..."):
             # Get fresh data for report
             fwi_for_report = get_fire_weather_index(36.25, 3.05)
-            alerts_for_report = get_alerts(user['region'])
+            report_region = st.session_state.get('user_region', 'ALL')
+            alerts_for_report = get_alerts(report_region)
             
             pdf_bytes = generate_pdf_report(
-                region=user['region'],
+                region=report_region,
                 alerts_data=alerts_for_report,
                 fwi_data=fwi_for_report
             )
