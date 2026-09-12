@@ -844,22 +844,27 @@ if not st.session_state.get("authenticated", False):
 st.sidebar.markdown("<h2 style='text-align:center; color:#00f2fe;'>🏛️ Command Center</h2>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
-user = st.session_state['user']
-st.sidebar.markdown(f"<p style='color:#fff;'>👤 <b>المستخدم:</b> {user['full_name']}</p>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<p style='color:#fff;'>🏢 <b>الجهة:</b> {user['role']}</p>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<p style='color:#fff;'>📍 <b>النطاق:</b> {user['region']}</p>", unsafe_allow_html=True)
+# عرض بيانات المستخدم في الشريط الجانبي بناءً على نظام الجلسة الجديد
+current_user = st.session_state.get('user', 'مستخدم')
+current_role = st.session_state.get('role', 'Operator')
+
 st.sidebar.markdown("---")
+st.sidebar.markdown(f"<h3 style='color:#00f2fe;'>بيانات الجلسة</h3>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<p style='color:#fff;'>👤 <b>المستخدم:</b> {current_user}</p>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<p style='color:#fff;'>🛡️ <b>الصلاحية:</b> {current_role}</p>", unsafe_allow_html=True)
+
+# زر تسجيل الخروج
+if st.sidebar.button("🚪 تسجيل الخروج"):
+    st.session_state['authenticated'] = False
+    st.session_state['user'] = None
+    st.session_state['role'] = None
+    st.rerun()
 
 # Data source selection
 data_source = st.sidebar.radio(
     "مصدر البيانات | Data Source:",
     ["📹 الكاميرات المباشرة (Live Cameras)", "🛰️ الأقمار الصناعية (NASA FIRMS Satellite)"]
 )
-
-# Logout button
-if st.sidebar.button("تسجيل الخروج | Logout", use_container_width=True):
-    logout_user()
-    st.rerun()
 
 # ==========================================
 # Main Interface - Command Center
