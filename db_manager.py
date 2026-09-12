@@ -1,6 +1,7 @@
 import sqlite3
 import hashlib
 import os
+import secrets
 
 
 DB_NAME = "national_cmd.db"
@@ -174,4 +175,35 @@ def authenticate_user(username, password):
         return False, None
     except Exception as e:
         print(f"Auth Error: {e}")
+        return False, None
+
+
+def generate_session_token(username):
+    """توليد رمز جلسة مؤقت لحفظ التسجيل عند Refresh المتصفح"""
+    token = secrets.token_hex(16)
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET salt = salt WHERE username = ?", (username,))
+        # حفظ التوكين في جدول audit_logs للاسترجاع السريع
+        cursor.execute("INSERT INTO audit_logs (username, action) VALUES (?, ?)", (username, f"TOKEN:{token}"))
+        conn.commit()
+        conn.close()
+        return token
+    except Exception:
+        return None
+
+
+def verify_session_token(token):
+    """التحقق من صحة التوكين عند إعادة تحميل الصفحة"""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT username FROM audit_logs WHERE action = ? ORDER BY id DESC LIMIT 1", (f"TOKEN:{token}",))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return True, row[0]
+        return False, None
+    except Exception:
         return False, None

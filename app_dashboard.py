@@ -71,20 +71,23 @@ db.init_db()
 db.init_civil_defense_table()
 
 # ==========================================
-# Bilingual Support (AR / EN)
+# 1. تثبيت اللغة في الجلسة (Persist Language)
 # ==========================================
+if "lang" not in st.session_state:
+    st.session_state["lang"] = "AR"
+
+
+# قاموس الترجمات الموحد
 TRANSLATIONS = {
     "AR": {
         "title": "🏛️ المنظومة الوطنية للرصد والإنذار المبكر",
-        "login": "🔐 تسجيل الدخول",
-        "signup": "📝 إنشاء حساب جديد",
-        "user": "اسم المستخدم",
-        "pass": "كلمة المرور",
+        "login_tab": "🔐 تسجيل الدخول",
+        "signup_tab": "📝 إنشاء حساب جديد",
+        "user_label": "اسم المستخدم",
+        "pass_label": "كلمة المرور",
         "btn_login": "دخول المنظومة",
-        "btn_sim": "🚀 تشغيل محاكاة انتشار النيران",
-        "sim_title": "🔥 نتائج محاكاة التمدد (Rothermel Model)",
-        "units_title": "🚒 وحدات الحماية المدنية المرابطة",
-        "lang_selector": "🌐 اختر اللغة / Select Language",
+        "sim_title": "🚀 تشغيل محاكاة انتشار النيران",
+        "logout": "🚪 تسجيل الخروج",
         "map_layers": "⚙️ خيارات الخريطة",
         "ndvi": "🌿 طبقة الغطاء النباتي (NDVI)",
         "stations": "🚒 مراكز الحماية المدنية",
@@ -95,19 +98,19 @@ TRANSLATIONS = {
         "lon": "خط الطول",
         "run_sim": "▶️ تشغيل المحاكاة",
         "map_type": "نوع الخريطة",
-        "logout": "🚪 تسجيل الخروج"
+        "user_info": "بيانات الجلسة",
+        "username_label": "المستخدم",
+        "role_label": "الصلاحية"
     },
     "EN": {
-        "title": "🏛️ National Command & Early Warning System",
-        "login": "🔐 Login",
-        "signup": "📝 Sign Up",
-        "user": "Username",
-        "pass": "Password",
+        "title": "🏛️ National Early Warning & Command System",
+        "login_tab": "🔐 Login",
+        "signup_tab": "📝 Sign Up",
+        "user_label": "Username",
+        "pass_label": "Password",
         "btn_login": "Access System",
-        "btn_sim": "🚀 Run Fire Spread Simulation",
-        "sim_title": "🔥 Fire Spread Simulation (Rothermel Model)",
-        "units_title": "🚒 Deployed Civil Defense Units",
-        "lang_selector": "🌐 Select Language / اختر اللغة",
+        "sim_title": "🚀 Run Fire Spread Simulation",
+        "logout": "🚪 Logout",
         "map_layers": "⚙️ Map Layers",
         "ndvi": "🌿 Vegetation Layer (NDVI)",
         "stations": "🚒 Civil Defense Stations",
@@ -118,9 +121,33 @@ TRANSLATIONS = {
         "lon": "Longitude",
         "run_sim": "▶️ Run Simulation",
         "map_type": "Map Style",
-        "logout": "🚪 Logout"
+        "user_info": "Session Info",
+        "username_label": "Username",
+        "role_label": "Role"
     }
 }
+
+
+# تغيير اللغة عبر الشريط الجانبي مع حفظ التغيير
+def change_language():
+    if st.session_state["lang_radio"] == "English":
+        st.session_state["lang"] = "EN"
+    else:
+        st.session_state["lang"] = "AR"
+
+
+selected_radio = "English" if st.session_state["lang"] == "EN" else "العربية"
+st.sidebar.radio(
+    "🌐 Language / اللغة",
+    ["العربية", "English"],
+    index=0 if selected_radio == "العربية" else 1,
+    key="lang_radio",
+    on_change=change_language,
+    horizontal=True
+)
+
+
+t = TRANSLATIONS[st.session_state["lang"]]
 
 # ==========================================
 # Authentication System
@@ -780,9 +807,8 @@ inject_custom_css()
 init_session_state()
 
 # ==========================================
-# Login Page - Command Center
+# 2. استرجاع الجلسة من رابط المتصفح (Persistent Auth)
 # ==========================================
-# 1. تهيئة الجلسة بشكل آمن ومباشر في أعلى الملف
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "user" not in st.session_state:
@@ -791,35 +817,42 @@ if "role" not in st.session_state:
     st.session_state["role"] = None
 
 
-# 2. استخدام .get() الآمنة لعدم إلقاء KeyError مطلقاً
+# التحقق من وجود توكين في رابط الصفحة عند Refresh
+query_token = st.query_params.get("session_token", None)
+if not st.session_state["authenticated"] and query_token:
+    valid, user_name = db.verify_session_token(query_token)
+    if valid:
+        st.session_state["authenticated"] = True
+        st.session_state["user"] = user_name
+        st.session_state["role"] = "Admin"
+
+
+# ==========================================
+# 3. واجهة الدخول بحفظ الـ Token
+# ==========================================
 if not st.session_state.get("authenticated", False):
-    st.markdown("<h2 style='text-align: center; color: #00f2fe;'>🏛️ بوابة الدخول السيادية - Command Center</h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2 style='text-align: center; color: #00f2fe;'>{t['title']}</h2>", unsafe_allow_html=True)
     
-    tab_login, tab_signup = st.tabs(["🔐 تسجيل الدخول", "📝 إنشاء حساب جديد"])
+    tab_login, tab_signup = st.tabs([t["login_tab"], t["signup_tab"]])
     
     with tab_login:
         with st.form(key="login_form"):
-            user_in = st.text_input("اسم المستخدم")
-            pass_in = st.text_input("كلمة المرور", type="password")
-            submit_login = st.form_submit_button("دخول المنظومة")
-            
-            if submit_login:
-                user_clean = user_in.strip()
-                pass_clean = pass_in.strip()
-                if user_clean and pass_clean:
-                    success, role = db.authenticate_user(user_clean, pass_clean)
+            user_in = st.text_input(t["user_label"])
+            pass_in = st.text_input(t["pass_label"], type="password")
+            if st.form_submit_button(t["btn_login"]):
+                if user_in and pass_in:
+                    success, role = db.authenticate_user(user_in, pass_in)
                     if success:
                         st.session_state["authenticated"] = True
-                        st.session_state["user"] = user_clean
+                        st.session_state["user"] = user_in
                         st.session_state["role"] = role
-                        st.success("تم الدخول بنجاح!")
+                        token = db.generate_session_token(user_in)
+                        if token:
+                            st.query_params["session_token"] = token
                         st.rerun()
                     else:
-                        st.error("اسم المستخدم أو كلمة المرور غير صحيحة")
-                else:
-                    st.warning("يرجى ملء جميع الحقول!")
-
-
+                        st.error("خطأ في البيانات / Invalid credentials")
+    
     with tab_signup:
         with st.form(key="signup_form"):
             new_user = st.text_input("اختر اسم مستخدم جديد")
@@ -850,19 +883,14 @@ if not st.session_state.get("authenticated", False):
 st.sidebar.markdown("<h2 style='text-align:center; color:#00f2fe;'>🏛️ Command Center</h2>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
-# Language selector
-lang_choice = st.sidebar.radio("🌐 Language / اللغة", ["العربية", "English"], horizontal=True)
-lang_code = "AR" if lang_choice == "العربية" else "EN"
-t = TRANSLATIONS[lang_code]
-
 # عرض بيانات المستخدم في الشريط الجانبي بناءً على نظام الجلسة الجديد
 current_user = st.session_state.get('user', 'مستخدم')
 current_role = st.session_state.get('role', 'Operator')
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"<h3 style='color:#00f2fe;'>بيانات الجلسة</h3>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<p style='color:#fff;'>👤 <b>المستخدم:</b> {current_user}</p>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<p style='color:#fff;'>🛡️ <b>الصلاحية:</b> {current_role}</p>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<h3 style='color:#00f2fe;'>{t['user_info']}</h3>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<p style='color:#fff;'>👤 <b>{t['username_label']}:</b> {current_user}</p>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<p style='color:#fff;'>🛡️ <b>{t['role_label']}:</b> {current_role}</p>", unsafe_allow_html=True)
 
 # زر تسجيل الخروج
 if st.sidebar.button(t["logout"]):
@@ -1169,7 +1197,8 @@ legend_html = """
 """
 m.get_root().html.add_child(folium.Element(legend_html))
 
-st_folium(m, width=1100, height=500)
+# استخدام returned_objects=[] يمنع البطء والتعليق نهائياً!
+st_folium(m, width="100%", height=500, returned_objects=[], key="fast_command_map")
 
 # ==========================================
 # YOLO Detection Engine
