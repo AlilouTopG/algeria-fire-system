@@ -67,54 +67,60 @@ ALGERIA_BOUNDS = {
 # ==========================================
 # Database Initialization
 # ==========================================
-def init_db():
-    """Initialize database with users and alerts tables"""
-    try:
-        db_path = os.getenv('DATABASE_PATH', 'fire_system.db')
-        with sqlite3.connect(db_path) as conn:
-            c = conn.cursor()
-            
-            # Alerts table
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS alerts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT,
-                    region_id TEXT,
-                    hazard_type TEXT,
-                    confidence REAL,
-                    source TEXT
-                )
-            ''')
-            
-            # Users table with roles
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    username TEXT PRIMARY KEY,
-                    password_hash TEXT,
-                    role TEXT,
-                    region TEXT,
-                    full_name TEXT
-                )
-            ''')
-            
-            # Insert default admin accounts if not exist
-            default_users = [
-                ("admin", hash_password("admin123"), "المركز الوطني", "ALL", "System Admin"),
-                ("op_algiers", hash_password("algiers2026"), "غرفة الجزائر", "16_ALGIERS", "Algiers Operator"),
-                ("op_tlemcen", hash_password("tlemcen2026"), "غرفة تلمسان", "13_TLEMCEN", "Tlemcen Operator"),
-                ("op_batna", hash_password("batna2026"), "غرفة باتنة", "06_BATNA", "Batna Operator")
-            ]
-            
-            for user in default_users:
-                c.execute("INSERT OR IGNORE INTO users VALUES (?, ?, ?, ?, ?)", user)
-            
-            conn.commit()
-            logger.info(f"Database initialized: {db_path}")
-    except sqlite3.Error as e:
-        logger.error(f"Database init failed: {e}")
-        raise
-
 db.init_db()
+db.init_civil_defense_table()
+
+# ==========================================
+# Bilingual Support (AR / EN)
+# ==========================================
+TRANSLATIONS = {
+    "AR": {
+        "title": "🏛️ المنظومة الوطنية للرصد والإنذار المبكر",
+        "login": "🔐 تسجيل الدخول",
+        "signup": "📝 إنشاء حساب جديد",
+        "user": "اسم المستخدم",
+        "pass": "كلمة المرور",
+        "btn_login": "دخول المنظومة",
+        "btn_sim": "🚀 تشغيل محاكاة انتشار النيران",
+        "sim_title": "🔥 نتائج محاكاة التمدد (Rothermel Model)",
+        "units_title": "🚒 وحدات الحماية المدنية المرابطة",
+        "lang_selector": "🌐 اختر اللغة / Select Language",
+        "map_layers": "⚙️ خيارات الخريطة",
+        "ndvi": "🌿 طبقة الغطاء النباتي (NDVI)",
+        "stations": "🚒 مراكز الحماية المدنية",
+        "routing": "📍 توجيه التدخل السريع",
+        "simulation": "🔥 محاكاة انتشار النار",
+        "manual_sim": "🎯 محاكاة يدوية",
+        "lat": "خط العرض",
+        "lon": "خط الطول",
+        "run_sim": "▶️ تشغيل المحاكاة",
+        "map_type": "نوع الخريطة",
+        "logout": "🚪 تسجيل الخروج"
+    },
+    "EN": {
+        "title": "🏛️ National Command & Early Warning System",
+        "login": "🔐 Login",
+        "signup": "📝 Sign Up",
+        "user": "Username",
+        "pass": "Password",
+        "btn_login": "Access System",
+        "btn_sim": "🚀 Run Fire Spread Simulation",
+        "sim_title": "🔥 Fire Spread Simulation (Rothermel Model)",
+        "units_title": "🚒 Deployed Civil Defense Units",
+        "lang_selector": "🌐 Select Language / اختر اللغة",
+        "map_layers": "⚙️ Map Layers",
+        "ndvi": "🌿 Vegetation Layer (NDVI)",
+        "stations": "🚒 Civil Defense Stations",
+        "routing": "📍 Rapid Response Routing",
+        "simulation": "🔥 Fire Spread Simulation",
+        "manual_sim": "🎯 Manual Simulation",
+        "lat": "Latitude",
+        "lon": "Longitude",
+        "run_sim": "▶️ Run Simulation",
+        "map_type": "Map Style",
+        "logout": "🚪 Logout"
+    }
+}
 
 # ==========================================
 # Authentication System
@@ -844,6 +850,11 @@ if not st.session_state.get("authenticated", False):
 st.sidebar.markdown("<h2 style='text-align:center; color:#00f2fe;'>🏛️ Command Center</h2>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
+# Language selector
+lang_choice = st.sidebar.radio("🌐 Language / اللغة", ["العربية", "English"], horizontal=True)
+lang_code = "AR" if lang_choice == "العربية" else "EN"
+t = TRANSLATIONS[lang_code]
+
 # عرض بيانات المستخدم في الشريط الجانبي بناءً على نظام الجلسة الجديد
 current_user = st.session_state.get('user', 'مستخدم')
 current_role = st.session_state.get('role', 'Operator')
@@ -854,7 +865,7 @@ st.sidebar.markdown(f"<p style='color:#fff;'>👤 <b>المستخدم:</b> {curr
 st.sidebar.markdown(f"<p style='color:#fff;'>🛡️ <b>الصلاحية:</b> {current_role}</p>", unsafe_allow_html=True)
 
 # زر تسجيل الخروج
-if st.sidebar.button("🚪 تسجيل الخروج"):
+if st.sidebar.button(t["logout"]):
     st.session_state['authenticated'] = False
     st.session_state['user'] = None
     st.session_state['role'] = None
@@ -950,22 +961,22 @@ st.subheader("🗺️ خريطة الرصد الجغرافي الوطنية | Al
 # Map controls in sidebar
 with st.sidebar:
     st.markdown("---")
-    st.subheader("⚙️ خيارات الخريطة | Map Layers")
-    show_ndvi = st.checkbox("🌿 طبقة الغطاء النباتي (NDVI)", value=False)
-    show_stations = st.checkbox("🚒 مراكز الحماية المدنية", value=True)
-    show_routing = st.checkbox("📍 توجيه التدخل السريع", value=True)
-    show_simulation = st.checkbox("🔥 محاكاة انتشار النار (Fire Spread)", value=False)
+    st.subheader(t["map_layers"])
+    show_ndvi = st.checkbox(t["ndvi"], value=False)
+    show_stations = st.checkbox(t["stations"], value=True)
+    show_routing = st.checkbox(t["routing"], value=True)
+    show_simulation = st.checkbox(t["simulation"], value=False)
     
     # Click-to-Simulate input
     st.markdown("---")
-    st.subheader("🎯 محاكاة يدوية | Manual Simulation")
-    sim_lat = st.number_input("خط العرض | Latitude", value=36.75, min_value=18.0, max_value=37.5, step=0.01)
-    sim_lon = st.number_input("خط الطول | Longitude", value=3.05, min_value=-9.0, max_value=12.5, step=0.01)
-    run_simulation = st.button("▶️ تشغيل المحاكاة | Run Simulation")
+    st.subheader(t["manual_sim"])
+    sim_lat = st.number_input(t["lat"], value=36.75, min_value=18.0, max_value=37.5, step=0.01)
+    sim_lon = st.number_input(t["lon"], value=3.05, min_value=-9.0, max_value=12.5, step=0.01)
+    run_simulation = st.button(t["run_sim"])
 
 # Base map selection
 map_type = st.radio(
-    "نوع الخريطة / Map Style:", 
+    t["map_type"], 
     ["🛰️ أقمار صناعية Google (High Zoom)", "🗺️ الخريطة القياسية (OpenStreetMap)"],
     horizontal=True
 )
@@ -1053,11 +1064,13 @@ if show_ndvi:
 
 # Add Civil Defense Stations (when enabled)
 if show_stations:
-    for station in CIVIL_DEFENSE_STATIONS:
+    # Get units from database
+    civil_units = db.get_all_civil_defense_units()
+    for unit in civil_units:
         folium.Marker(
-            location=[station['lat'], station['lon']],
-            popup=f"🚒 {station['name']}",
-            icon=folium.Icon(color="blue", icon="truck", prefix="fa")
+            location=[unit[3], unit[4]],
+            popup=f"🚒 {unit[2]} - {unit[0]} ({unit[1]})",
+            icon=folium.Icon(color="blue", icon="shield")
         ).add_to(m)
 
 # Restrict map to Algeria boundaries
@@ -1115,10 +1128,16 @@ if 'sat_data' in st.session_state and st.session_state['sat_data']:
         if show_simulation and conf == 'high':
             m = add_fire_simulation_to_map(m, fire['lat'], fire['lon'])
 
-# Manual simulation (when button is clicked)
+# Manual simulation (when button is clicked) - with session state persistence
 if run_simulation:
-    m = add_fire_simulation_to_map(m, sim_lat, sim_lon)
+    st.session_state["simulation_active"] = True
+    st.session_state["sim_lat"] = sim_lat
+    st.session_state["sim_lon"] = sim_lon
     st.success(f"✅ تم تشغيل المحاكاة على الموقع: {sim_lat:.4f}, {sim_lon:.4f}")
+
+# Draw simulation if active (persistent in session)
+if st.session_state.get("simulation_active"):
+    m = add_fire_simulation_to_map(m, st.session_state.get("sim_lat", 36.75), st.session_state.get("sim_lon", 3.05))
 
 # Add Algeria boundary rectangle
 folium.Rectangle(
