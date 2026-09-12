@@ -1,0 +1,31 @@
+# Environment variables (contains secrets)
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Database files
+*.db
+*.db-journal
+
+# Model weights
+*.pt
+
+# Video files
+*.mp4
+
+# Alert images
+fire_alert.jpg
+
+# Log files
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
