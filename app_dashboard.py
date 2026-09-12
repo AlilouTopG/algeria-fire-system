@@ -15,7 +15,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from ultralytics import YOLO
 import folium
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 import plotly.express as px
 from fpdf import FPDF
 from geopy.distance import geodesic
@@ -1002,26 +1002,22 @@ with st.sidebar:
     sim_lon = st.number_input(t["lon"], value=3.05, min_value=-9.0, max_value=12.5, step=0.01)
     run_simulation = st.button(t["run_sim"])
 
-# Base map selection
+# Base map selection - استخدام خرائط سريعة CartoDB/OpenStreetMap
 map_type = st.radio(
     t["map_type"], 
-    ["🛰️ أقمار صناعية Google (High Zoom)", "🗺️ الخريطة القياسية (OpenStreetMap)"],
+    ["🗺️ CartoDB (سريع جداً)", "🗺️ OpenStreetMap (قياسي)"],
     horizontal=True
 )
 
-# Google Satellite tiles (supports zoom up to 19 - no white screen)
-google_sat_url = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-google_hybrid_url = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-
-if "Google" in map_type:
+# إنشاء الخريطة بناءً على النوع المختار
+if "CartoDB" in map_type:
     m = folium.Map(
         location=[36.25, 3.05],
-        zoom_start=8,
+        zoom_start=7,
         min_zoom=5,
-        max_zoom=19,  # Google supports up to 19 - no white screen
-        max_bounds=True,
-        tiles=google_hybrid_url,
-        attr="Google Satellite Hybrid"
+        max_zoom=19,
+        tiles="CartoDB positron",
+        control_scale=True
     )
 else:
     m = folium.Map(
@@ -1029,8 +1025,8 @@ else:
         zoom_start=7,
         min_zoom=5,
         max_zoom=19,
-        max_bounds=True,
-        tiles="OpenStreetMap"
+        tiles="OpenStreetMap",
+        control_scale=True
     )
 
 # Inject dark glassmorphism CSS for map controls
@@ -1197,8 +1193,8 @@ legend_html = """
 """
 m.get_root().html.add_child(folium.Element(legend_html))
 
-# استخدام returned_objects=[] يمنع البطء والتعليق نهائياً!
-st_folium(m, width="100%", height=500, returned_objects=[], key="fast_command_map")
+# folium_static تقوم برسم الخريطة فوراً وبدون أي ثقل أو اختفاء
+folium_static(m, width=1000, height=500)
 
 # ==========================================
 # YOLO Detection Engine
