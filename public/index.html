@@ -3,270 +3,448 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>المنظومة الوطنية للرصد والإنذار المبكر لحرائق الغابات</title>
+  <title>المركز الوطني للقيادة والإنذار المبكر لحرائق الغابات | الجزائر</title>
   
-  <!-- Tailwind CSS & Google Fonts & Leaflet -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
   <style>
+    :root {
+      --bg-oled: #06080d;
+      --panel-bg: rgba(13, 18, 29, 0.85);
+      --cyan-neon: #00E5FF;
+      --orange-neon: #FF5722;
+      --red-fire: #FF2A2A;
+      --emerald-neon: #10B981;
+    }
     body {
       font-family: 'Tajawal', sans-serif;
-      background-color: #07090e;
-      color: #e2e8f0;
+      background-color: var(--bg-oled);
+      color: #e6edf3;
+      background-image: radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.04) 0%, transparent 70%);
     }
-    .neon-border {
-      border: 1px solid rgba(0, 242, 254, 0.25);
-      box-shadow: 0 0 15px rgba(0, 242, 254, 0.08);
+    .panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 229, 255, 0.15);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
     }
-    .fire-pulse {
-      animation: pulse-red 2s infinite;
+    .panel-fire {
+      border: 1px solid rgba(255, 42, 42, 0.3);
+      box-shadow: 0 0 15px rgba(255, 42, 42, 0.08);
     }
-    @keyframes pulse-red {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(1.15); }
+    .hud-border-top {
+      border-top: 2px solid var(--cyan-neon);
     }
     #map {
-      height: 480px;
+      height: 520px;
       width: 100%;
       border-radius: 12px;
-      z-index: 10;
+      background: #0b0f19;
+    }
+    /* Radar Blip Animation */
+    .radar-blip {
+      width: 22px;
+      height: 22px;
+      background: rgba(255, 42, 42, 0.8);
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 0 15px #ff2a2a;
+    }
+    .radar-blip::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      border-radius: 50%;
+      border: 2px solid #ff2a2a;
+      animation: radar-pulse 1.8s infinite ease-out;
+    }
+    @keyframes radar-pulse {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(3.2); opacity: 0; }
+    }
+    .station-marker {
+      width: 18px;
+      height: 18px;
+      background: #00E5FF;
+      border: 2px solid #ffffff;
+      border-radius: 4px;
+      transform: rotate(45deg);
+      box-shadow: 0 0 10px #00E5FF;
+    }
+    .leaflet-popup-content-wrapper {
+      background: rgba(11, 16, 26, 0.95) !important;
+      color: #fff !important;
+      border: 1px solid #00E5FF !important;
+      border-radius: 8px !important;
+      font-family: 'Tajawal', sans-serif !important;
+    }
+    .leaflet-popup-tip {
+      background: #0b101a !important;
     }
   </style>
 </head>
-<body class="p-4 md:p-6 min-h-screen">
+<body class="p-3 md:p-6 min-h-screen">
 
-  <!-- Header -->
-  <header class="flex flex-col md:flex-row justify-between items-center mb-6 p-4 rounded-xl bg-[#0d121d] neon-border">
-    <div class="flex items-center gap-3">
-      <div class="w-12 h-12 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 text-2xl border border-red-500/40">
-        <i class="fa-solid fa-fire-flame-curved"></i>
+  <!-- Top Strategic Command Bar -->
+  <header class="panel p-4 mb-6 flex flex-col lg:flex-row justify-between items-center gap-4 hud-border-top">
+    <div class="flex items-center gap-4">
+      <div class="w-14 h-14 rounded-xl bg-cyan-950/40 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+        </svg>
       </div>
       <div>
-        <h1 class="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-          المركز الوطني للرصد والإنذار المبكر لحرائق الغابات
-          <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30">متصل سحابياً</span>
-        </h1>
-        <p class="text-xs text-cyan-400">Algerian Sovereign Wildfire Command Platform • Vercel Cloud Edition</p>
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl md:text-2xl font-extrabold text-white tracking-wide">المنظومة الوطنية للرصد والاستشعار التنبئي لحرائق الغابات</h1>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> البث السيادي مباشر
+          </span>
+        </div>
+        <p class="text-xs text-cyan-400 font-mono mt-0.5">NATIONAL COMMAND & TELEMETRY OPERATIONAL SYSTEM • ALGERIA SOVEREIGN SUITE</p>
       </div>
     </div>
-    <div class="flex items-center gap-4 mt-3 md:mt-0 text-sm">
-      <div class="text-right">
-        <div class="text-gray-400 text-xs">توقيت المنظومة (الجزائر)</div>
-        <div id="clock" class="text-white font-mono font-bold">--:--:--</div>
+
+    <!-- Clock & Quick Filters -->
+    <div class="flex flex-wrap items-center gap-4">
+      <div class="bg-black/40 px-3.5 py-1.5 rounded-lg border border-cyan-500/20 text-center">
+        <span class="text-[10px] text-gray-400 block font-semibold">قطاع المراقبة</span>
+        <select id="wilaya-select" onchange="changeWilaya()" class="bg-transparent text-xs font-bold text-cyan-300 focus:outline-none cursor-pointer">
+          <option value="36.0686,4.7631,برج بوعريريج" selected>برج بوعريريج (HQ)</option>
+          <option value="36.7118,4.0459,تيزي وزو">تيزي وزو (جرجرة)</option>
+          <option value="36.7511,5.0642,بجاية">بجاية (قورايا)</option>
+          <option value="36.8211,5.7667,جيجل">جيجل (تاكسنة)</option>
+          <option value="36.8970,8.4431,الطارف">الطارف (القالة)</option>
+          <option value="36.5897,2.4484,تيبازة">تيبازة (شنوة)</option>
+          <option value="35.3081,6.7461,خنشلة">خنشلة (الأوراس)</option>
+          <option value="36.7538,3.0588,الجزائر العاصمة">الجزائر العاصمة</option>
+        </select>
       </div>
-      <button onclick="refreshData()" class="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-bold transition flex items-center gap-2">
-        <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> تحديث فوري
+
+      <div class="bg-black/40 px-3.5 py-1.5 rounded-lg border border-cyan-500/20 text-center">
+        <span class="text-[10px] text-gray-400 block font-semibold">توقيت الجزائر</span>
+        <span id="clock" class="text-sm font-mono font-bold text-white">--:--:--</span>
+      </div>
+
+      <button onclick="refreshAllData()" class="px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/40 rounded-lg text-xs font-bold text-cyan-300 transition flex items-center gap-2">
+        <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        تحديث فوري
       </button>
     </div>
   </header>
 
-  <!-- Metrics Grid -->
+  <!-- Telemetry & Threat Metrics Grid -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div class="p-4 rounded-xl bg-[#0d121d] neon-border">
-      <div class="text-xs text-gray-400 mb-1 flex items-center justify-between">
-        <span>مؤشر الخطر (FWI)</span>
-        <i class="fa-solid fa-gauge text-orange-400"></i>
+    <!-- Card 1: FWI -->
+    <div class="panel p-4 relative overflow-hidden">
+      <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
+        <span>مؤشر الخطر الجوي (FWI)</span>
+        <span id="fwi-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">حساب...</span>
       </div>
-      <div class="text-2xl md:text-3xl font-bold text-orange-400" id="fwi-score">--</div>
-      <div class="text-xs mt-1 font-semibold text-gray-300" id="fwi-status">جاري الحساب...</div>
+      <div class="text-3xl font-extrabold text-white" id="fwi-value">--</div>
+      <div class="text-xs text-gray-300 mt-1 flex items-center gap-2" id="fwi-danger-text">جاري مزامنة المحطة المناخية...</div>
     </div>
 
-    <div class="p-4 rounded-xl bg-[#0d121d] neon-border">
-      <div class="text-xs text-gray-400 mb-1 flex items-center justify-between">
-        <span>الحرارة والرطوبة</span>
-        <i class="fa-solid fa-temperature-high text-yellow-400"></i>
+    <!-- Card 2: Environment -->
+    <div class="panel p-4">
+      <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
+        <span>الحرارة / الرطوبة / الرياح</span>
+        <span class="text-cyan-400 font-mono text-xs">Sensor Feed</span>
       </div>
-      <div class="text-2xl md:text-3xl font-bold text-white" id="temp-humidity">--°C / --%</div>
-      <div class="text-xs mt-1 text-gray-400">محطة: برج بوعريريج</div>
+      <div class="text-2xl font-bold text-white font-mono" id="temp-humidity-wind">--°C | --% | -- km/h</div>
+      <div class="text-xs text-gray-400 mt-1.5" id="current-wilaya-name">القطاع: برج بوعريريج</div>
     </div>
 
-    <div class="p-4 rounded-xl bg-[#0d121d] neon-border">
-      <div class="text-xs text-gray-400 mb-1 flex items-center justify-between">
-        <span>بؤر الأقمار (FIRMS)</span>
-        <i class="fa-solid fa-satellite text-cyan-400"></i>
+    <!-- Card 3: Satellites -->
+    <div class="panel p-4">
+      <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
+        <span>بؤر الأقمار النشطة (FIRMS)</span>
+        <span class="text-xs text-red-400 font-bold flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span> NASA Space Link
+        </span>
       </div>
-      <div class="text-2xl md:text-3xl font-bold text-cyan-400" id="sat-count">0</div>
-      <div class="text-xs mt-1 text-gray-400">كوكبة VIIRS + MODIS</div>
+      <div class="text-3xl font-extrabold text-red-500" id="sat-fires-count">0</div>
+      <div class="text-xs text-gray-400 mt-1">كوكبة VIIRS NOAA-20 + SNPP</div>
     </div>
 
-    <div class="p-4 rounded-xl bg-[#0d121d] neon-border">
-      <div class="text-xs text-gray-400 mb-1 flex items-center justify-between">
-        <span>وحدات الحماية المدنية</span>
-        <i class="fa-solid fa-shield-halved text-blue-400"></i>
+    <!-- Card 4: Defense Stations -->
+    <div class="panel p-4">
+      <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
+        <span>وحدات التدخل للغابات</span>
+        <span class="text-blue-400 font-bold text-xs">جاهزية 100%</span>
       </div>
-      <div class="text-2xl md:text-3xl font-bold text-blue-400" id="stations-count">--</div>
-      <div class="text-xs mt-1 text-emerald-400">جاهزية تامة للتدخل</div>
+      <div class="text-3xl font-extrabold text-cyan-400" id="civil-units-count">11 وحدة</div>
+      <div class="text-xs text-emerald-400 mt-1">طوارئ الحماية المدنية: 1021</div>
     </div>
   </div>
 
-  <!-- Map & Alerts Section -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Map Container -->
-    <div class="lg:col-span-2 p-4 rounded-xl bg-[#0d121d] neon-border">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-map-location-dot text-cyan-400"></i>
-          خريطة الانتشار والسيطرة الجغرافية (Algeria GIS)
-        </h2>
-        <span class="text-xs text-gray-400">الحدود الوطنية والمراكز الاستراتيجية</span>
+  <!-- Tactical Operations Grid -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    
+    <!-- Map Control Container (2 Cols on Large Screens) -->
+    <div class="xl:col-span-2 panel p-4">
+      <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+          <h2 class="text-base font-bold text-white">الخارطة الجغرافية للتغطية التكتيكية والإنذار (Tactical GIS View)</h2>
+        </div>
+        
+        <div class="flex items-center gap-2 text-xs">
+          <button onclick="toggleSatelliteLayer()" id="sat-toggle-btn" class="px-3 py-1 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-semibold hover:bg-cyan-500/20 transition">
+            تبديل لصور الأقمار (Satellite)
+          </button>
+          <button onclick="runSimulation()" class="px-3 py-1 rounded bg-red-500/20 border border-red-500/40 text-red-300 font-semibold hover:bg-red-500/30 transition">
+            محاكاة انتشار النيران 🔥
+          </button>
+        </div>
       </div>
+
+      <!-- The Real Map Container -->
       <div id="map"></div>
+
+      <!-- Map Legend -->
+      <div class="flex flex-wrap items-center gap-6 mt-3 text-xs text-gray-400 pt-2 border-t border-gray-800">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 bg-[#00E5FF] rotate-45 border border-white"></div>
+          <span>وحدة حماية مدنية وتدخل سريع</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-red-500 animate-ping"></div>
+          <span>بؤرة حرارية مرصودة فضائياً</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 bg-red-600/40 border border-red-500"></div>
+          <span>نطاق محاكاة انتشار النيران (Wind Vector)</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Live Alert Feed -->
-    <div class="p-4 rounded-xl bg-[#0d121d] neon-border flex flex-col">
+    <!-- Real-time Alerts Feed -->
+    <div class="panel p-4 flex flex-col h-full">
       <div class="flex justify-between items-center mb-3">
-        <h2 class="font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-bell text-red-400"></i>
-          سجل التنبيهات المباشر
-        </h2>
-        <span class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 animate-pulse">Live</span>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+          <h2 class="text-base font-bold text-white">سجل الرصد الميداني والإنذارات</h2>
+        </div>
+        <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/30 px-2 py-0.5 rounded">Auto-Sync</span>
       </div>
 
-      <div class="overflow-y-auto max-h-[420px] space-y-3 flex-1 pr-1" id="alerts-list">
-        <div class="text-center text-gray-500 py-12 text-sm">جاري جلب أحدث التنبيهات...</div>
+      <div class="flex-1 overflow-y-auto space-y-3 max-h-[500px] pr-1" id="alerts-container">
+        <div class="text-center text-gray-500 py-16 text-sm">جاري جلب أحدث سجلات الرصد...</div>
       </div>
     </div>
   </div>
-
-  <!-- Footer -->
-  <footer class="mt-8 text-center text-xs text-gray-600">
-    المنظومة الجزائرية للرصد والإنذار المبكر لحرائق الغابات © 2026 • Powered by FastAPI & Leaflet.js
-  </footer>
 
   <script>
-    // 1. Clock
+    // 1. Live Clock
     setInterval(() => {
-      const now = new Date();
-      document.getElementById('clock').innerText = now.toLocaleTimeString('ar-DZ');
+      const d = new Date();
+      document.getElementById('clock').innerText = d.toLocaleTimeString('ar-DZ');
     }, 1000);
 
-    // 2. Leaflet Map Init
-    const map = L.map('map').setView([36.0686, 4.7631], 7);
-
-    // Dark Tile Layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
-
-    // Satellite layer toggle
-    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri'
+    // 2. Map Configuration (Zero API Keys Needed - 100% Reliable & Military Dark)
+    const map = L.map('map', {
+      center: [36.0686, 4.7631], // Centered on Bordj Bou Arreridj
+      zoom: 7,
+      zoomControl: true
     });
 
-    L.control.layers({ "الخريطة الداكنة": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png') }, { "صور الأقمار (Satellite)": esriSat }).addTo(map);
+    // High Reliability Esri Dark / Satellite Layers (No Token Required)
+    const tacticalDarkLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap',
+      maxZoom: 16
+    }).addTo(map);
 
-    // 3. Fetch Weather & FWI
-    async function loadWeather() {
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Esri, Maxar, Earthstar Geographics',
+      maxZoom: 18
+    });
+
+    let isSatellite = false;
+    function toggleSatelliteLayer() {
+      if (isSatellite) {
+        map.removeLayer(satelliteLayer);
+        map.addLayer(tacticalDarkLayer);
+        document.getElementById('sat-toggle-btn').innerText = "تبديل لصور الأقمار (Satellite)";
+      } else {
+        map.removeLayer(tacticalDarkLayer);
+        map.addLayer(satelliteLayer);
+        document.getElementById('sat-toggle-btn').innerText = "العودة للوضع التكتيكي (Dark)";
+      }
+      isSatellite = !isSatellite;
+    }
+
+    // Layer Groups
+    const stationsLayerGroup = L.layerGroup().addTo(map);
+    const firesLayerGroup = L.layerGroup().addTo(map);
+    const simulationLayerGroup = L.layerGroup().addTo(map);
+
+    // 3. Load Weather & FWI
+    let currentLat = 36.0686;
+    let currentLon = 4.7631;
+    let currentWilayaTitle = "برج بوعريريج";
+
+    async function loadWeatherFWI() {
       try {
-        const res = await fetch('/api/weather?lat=36.0686&lon=4.7631');
+        const res = await fetch(`/api/weather?lat=${currentLat}&lon=${currentLon}`);
         const data = await res.json();
-        document.getElementById('fwi-score').innerText = data.fwi_score;
-        document.getElementById('fwi-status').innerText = data.danger_level;
-        document.getElementById('fwi-status').style.color = data.color;
-        document.getElementById('temp-humidity').innerText = `${data.temperature}°C / ${data.humidity}%`;
-      } catch (e) {
-        console.error("Weather load error:", e);
+        
+        document.getElementById('fwi-value').innerText = data.fwi_score;
+        document.getElementById('fwi-badge').innerText = data.danger_level;
+        document.getElementById('fwi-badge').style.color = data.color;
+        document.getElementById('fwi-danger-text').innerText = `الحالة: ${data.danger_level}`;
+        document.getElementById('temp-humidity-wind').innerText = `${data.temperature}°C | ${data.humidity}% | ${data.wind_speed} km/h`;
+      } catch (err) {
+        console.error("Weather error:", err);
       }
     }
 
-    // 4. Fetch Civil Defense Stations
+    function changeWilaya() {
+      const select = document.getElementById('wilaya-select');
+      const [lat, lon, title] = select.value.split(',');
+      currentLat = parseFloat(lat);
+      currentLon = parseFloat(lon);
+      currentWilayaTitle = title;
+      document.getElementById('current-wilaya-name').innerText = `القطاع: ${title}`;
+      map.flyTo([currentLat, currentLon], 9, { duration: 1.5 });
+      loadWeatherFWI();
+    }
+
+    // 4. Load Stations with Custom Clean Markers
     async function loadStations() {
       try {
         const res = await fetch('/api/stations');
         const data = await res.json();
-        document.getElementById('stations-count').innerText = data.stations.length;
+        document.getElementById('civil-units-count').innerText = `${data.stations.length} وحدة`;
+        stationsLayerGroup.clearLayers();
 
         data.stations.forEach(st => {
-          const marker = L.circleMarker([st.lat, st.lon], {
-            radius: 6,
-            fillColor: "#00E5FF",
-            color: "#ffffff",
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.8
-          }).addTo(map);
+          const customIcon = L.divIcon({
+            className: 'station-marker',
+            iconSize: [14, 14],
+            iconAnchor:
+          });
 
-          marker.bindPopup(`<b>🚒 ${st.unit_name}</b><br>الولاية: ${st.wilaya}<br>هاتف النجدة: ${st.phone}`);
+          const m = L.marker([st.lat, st.lon], { icon: customIcon }).addTo(stationsLayerGroup);
+          m.bindPopup(`
+            <div style="font-size: 13px; line-height: 1.5;">
+              <b style="color: #00E5FF;">🚒 ${st.unit_name}</b><br/>
+              <span style="color:#aaa;">الولاية:</span> ${st.wilaya}<br/>
+              <span style="color:#aaa;">رقم النجدة السريع:</span> <b style="color:#10B981;">${st.phone}</b>
+            </div>
+          `);
         });
       } catch (e) {
-        console.error("Stations load error:", e);
+        console.error("Stations error:", e);
       }
     }
 
-    // 5. Fetch Active Satellite Fires (NASA FIRMS)
-    async function loadFirmsFires() {
+    // 5. Load Active Satellite Fires
+    async function loadFirms() {
       try {
         const res = await fetch('/api/firms');
         const data = await res.json();
-        document.getElementById('sat-count').innerText = data.total;
+        document.getElementById('sat-fires-count').innerText = data.total;
+        firesLayerGroup.clearLayers();
 
         data.active_fires.forEach(f => {
-          const fireMarker = L.circleMarker([f.lat, f.lon], {
-            radius: 9,
-            fillColor: "#ff3b30",
-            color: "#ff9500",
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.85,
-            className: "fire-pulse"
-          }).addTo(map);
+          const fireIcon = L.divIcon({
+            className: 'radar-blip',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          });
 
-          fireMarker.bindPopup(`🔥 <b>بؤرة حرارية مرصودة فضائياً</b><br>القمر الصناعي: ${f.satellite}<br>الإحداثيات: ${f.lat.toFixed(3)}, ${f.lon.toFixed(3)}`);
+          const fm = L.marker([f.lat, f.lon], { icon: fireIcon }).addTo(firesLayerGroup);
+          fm.bindPopup(`
+            <div style="font-size: 13px;">
+              <b style="color: #FF2A2A;">🔥 بؤرة اشتعال مرصودة فضائياً</b><br/>
+              <span style="color:#aaa;">القمر الصناعي:</span> ${f.satellite}<br/>
+              <span style="color:#aaa;">مستوى الثقة:</span> ${f.confidence}<br/>
+              <span style="color:#aaa;">الإحداثيات:</span> ${f.lat.toFixed(4)}, ${f.lon.toFixed(4)}
+            </div>
+          `);
         });
       } catch (e) {
-        console.error("FIRMS load error:", e);
+        console.error("FIRMS error:", e);
       }
     }
 
-    // 6. Fetch Alerts Feed
+    // 6. Load Alert Logs Feed
     async function loadAlerts() {
       try {
         const res = await fetch('/api/alerts');
         const data = await res.json();
-        const container = document.getElementById('alerts-list');
+        const container = document.getElementById('alerts-container');
 
         if (data.alerts.length === 0) {
-          container.innerHTML = '<div class="text-center text-gray-500 py-12 text-sm">لا توجد إنذارات مسجلة حالياً. الوضع مستقر.</div>';
+          container.innerHTML = '<div class="text-center text-gray-500 py-16 text-sm">المنظومة هادئة ومستقرة، لا توجد تهديدات مسجلة.</div>';
           return;
         }
 
         container.innerHTML = data.alerts.map(a => `
-          <div class="p-3 rounded-lg bg-[#141a27] border border-red-500/30 flex flex-col gap-1">
+          <div class="panel panel-fire p-3.5 rounded-xl border border-red-500/30 flex flex-col gap-1.5 bg-[#101622]">
             <div class="flex justify-between items-center">
-              <span class="text-xs font-bold text-red-400 flex items-center gap-1">
-                <i class="fa-solid fa-triangle-exclamation"></i> ${a.hazard_type}
+              <span class="text-xs font-extrabold text-red-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                ${a.hazard_type}
               </span>
-              <span class="text-[10px] text-gray-500 font-mono">${a.timestamp}</span>
+              <span class="text-[11px] font-mono text-gray-400">${a.timestamp}</span>
             </div>
-            <div class="text-sm font-semibold text-white">${a.region}</div>
-            <div class="flex justify-between items-center text-xs text-gray-400 mt-1">
-              <span>المصدر: ${a.source}</span>
-              <span class="text-emerald-400 font-mono font-bold">${(a.confidence * 100).toFixed(0)}% دقة</span>
+            <div class="text-sm font-bold text-white tracking-wide">${a.region}</div>
+            <div class="flex justify-between items-center text-xs text-gray-400 mt-1 pt-1 border-t border-gray-800/80">
+              <span class="text-gray-400">المصدر: ${a.source}</span>
+              <span class="text-emerald-400 font-mono font-bold">${(a.confidence * 100).toFixed(1)}% نسبة التأكيد</span>
             </div>
           </div>
         `).join('');
       } catch (e) {
-        console.error("Alerts load error:", e);
+        console.error("Alerts error:", e);
       }
     }
 
-    async function refreshData() {
-      const icon = document.getElementById('refresh-icon');
-      icon.classList.add('fa-spin');
-      await Promise.all([loadWeather(), loadStations(), loadFirmsFires(), loadAlerts()]);
-      icon.classList.remove('fa-spin');
+    // 7. Simulation Mode
+    let simActive = false;
+    function runSimulation() {
+      simulationLayerGroup.clearLayers();
+      if (!simActive) {
+        const polygon = L.polygon([
+          [currentLat, currentLon],
+          [currentLat + 0.05, currentLon + 0.04],
+          [currentLat + 0.08, currentLon - 0.02]
+        ], {
+          color: '#FF2A2A',
+          fillColor: '#FF5722',
+          fillOpacity: 0.45,
+          weight: 2
+        }).addTo(simulationLayerGroup);
+
+        polygon.bindPopup(`<b>🔥 مخروط انتشار الحريق المتوقع (1-2 ساعة)</b><br/>نطاق سرعة الرياح: 25-35 كم/سا باتجاه الشمال الشرقي.`);
+        map.panTo([currentLat + 0.03, currentLon]);
+        simActive = true;
+      } else {
+        simActive = false;
+      }
     }
 
-    // Initial Load & Polling
-    refreshData();
-    setInterval(loadAlerts, 5000); // تحديث التنبيهات كل 5 ثوانٍ
+    async function refreshAllData() {
+      const icon = document.getElementById('refresh-icon');
+      icon.classList.add('animate-spin');
+      await Promise.all([loadWeatherFWI(), loadStations(), loadFirms(), loadAlerts()]);
+      setTimeout(() => icon.classList.remove('animate-spin'), 600);
+    }
+
+    // Initialize
+    refreshAllData();
+    setInterval(loadAlerts, 4000); // تحديث التنبيهات كل 4 ثوانٍ تلقائياً
   </script>
 </body>
 </html>
