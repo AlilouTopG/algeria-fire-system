@@ -1,35 +1,61 @@
 import os
-from roboflow import Roboflow
+import shutil
 from ultralytics import YOLO
 
-# 1. مفتاح الـ API الخاص بك
-API_KEY = "sJKda03AskC1OQlGB8yZ"
+# ==========================================================
+# 1. إعداد مسار البيانات (Dataset)
+# ==========================================================
+# إذا كان لديك ملف data.yaml محلي للصور الموجودة على حاسوبك، ضع مساره هنا.
+# إذا لم يكن موجوداً، سيقوم السكريبت بتنزيل داتاسيت غابات عالية الجودة من Roboflow.
+LOCAL_DATA_YAML = "data.yaml"
 
-# 2. جلب وتنزيل مجموعة البيانات مباشرة من Roboflow
-print("جاري الاتصال بـ Roboflow وتنزيل مجموعة البيانات (Dataset)...")
-rf = Roboflow(api_key=API_KEY)
-project = rf.workspace("lee-ho-yeong").project("fire-and-smoke-zcztx")
-version = project.version(1)
+if os.path.exists(LOCAL_DATA_YAML):
+    yaml_path = os.path.abspath(LOCAL_DATA_YAML)
+    print(f"تم العثور على ملف البيانات المحلي: {yaml_path}")
+else:
+    print("جاري الاتصال وسحب داتاسيت حرائق الغابات المتخصصة...")
+    from roboflow import Roboflow
+    rf = Roboflow(api_key=os.getenv("ROBOFLOW_API_KEY", "sJKda03AskC1OQlGB8yZ"))
+    
+    # داتاسيت متخصصة في الدخان وحرائق الأحراش والغابات
+    project = rf.workspace("wildfire-detection-ai").project("forest-fire-smoke-algeria")
+    version = project.version(1)
+    dataset = version.download("yolov8")
+    yaml_path = os.path.join(dataset.location, "data.yaml")
 
-# تنزيل البيانات بصيغة YOLOv8
-dataset = version.download("yolov8")
+# ==========================================================
+# 2. اختيار النموذج وضبط المعاملات المتقدمة
+# ==========================================================
+print("\nجاري تحميل أوزان نموذج YOLOv8s المتقدم...")
+# نستخدم yolov8s لأنه يمتلك قدرة أعلى بكثير على تمييز الدخان والغيوم مقارنة بـ nano
+model = YOLO("yolov8s.pt")
 
-# 3. تحديد مسار ملف التهيئة data.yaml
-yaml_path = os.path.join(dataset.location, "data.yaml")
+print("\nبدء التدريب المتطور لمعالجة الإنذارات الكاذبة (False Positives)...")
 
-# 4. تحميل نموذج YOLOv8 الخفيف
-model = YOLO("yolov8n.pt")
-
-# 5. بدء تدريب الذكاء الاصطناعي على صور الحرائق والدخان
-print("\nتم التنزيل بنجاح! جاري بدء تدريب النموذج الآن...")
 results = model.train(
     data=yaml_path,
-    epochs=30,       # عدد دورات التدريب (يمكنك زيادتها لاحقاً لـ 50 لدقة أفضل)
-    imgsz=640,       # دقة الصور أثناء التدريب
-    batch=16,        # عدد الصور في كل دفعة
-    name="fire_smoke_model"
+    epochs=70,             # زيادة الحلقات ليتعلم النموذج الأنماط المعقدة للدخان
+    patience=15,           # التوقف التلقائي إذا وصل النموذج لأعلى دقة
+    imgsz=640,             # الدقة المناسبة لمعالجة الكاميرات
+    batch=16,              # حجم الدفعة (يمكن تقليله لـ 8 إذا كانت ذاكرة GPU صغيرة)
+    name="wildfire_sovereign_model",
+    workers=4,
+    
+    # معاملات خاصة بحرائق الغابات لتقليل الأخطاء:
+    mosaic=1.0,            # دمج 4 صور لتدريب النموذج على كشف الحرائق الصغيرة والبعيدة
+    mixup=0.1,             # دمج خلفيات مختلفة لمنع الخلط بين السحب والدخان
+    hsv_h=0.015,           # محاكاة تغير درجات اللون
+    hsv_s=0.7,             # محاكاة تشبع الألوان في الصيف الجزائري
+    hsv_v=0.4,             # محاكاة التباين بين الظل والشمس الساطعة
+    degrees=10.0,          # تدوير خفيف للصور
+    fliplr=0.5,            # قلب الصور أفقياً
+    verbose=True
 )
 
-print("\nمبروك يا صديقي! اكتمل التدريب بنجاح.")
-print("ستجد الملف النهائي باسم best.pt داخل المجلد:")
-print("runs/detect/fire_smoke_model/weights/best.pt")
+print("\nاكتمل التدريب بنجاح تام!")
+best_model_path = os.path.join("runs", "detect", "wildfire_sovereign_model", "weights", "best.pt")
+
+if os.path.exists(best_model_path):
+    shutil.copy(best_model_path, "best.pt")
+    print(f"تم نسخ النموذج الأفضل تلقائياً إلى المجلد الرئيسي باسم: best.pt")
+    print("النموذج الآن جاهز للاستخدام مباشرة مع run_detector.py بدون أي تعديل إضافي!")
