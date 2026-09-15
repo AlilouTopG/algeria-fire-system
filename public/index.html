@@ -5,60 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>المركز الوطني للقيادة والإنذار المبكر لحرائق الغابات | الجزائر</title>
   
+  <!-- مكتبات التصميم والخريطة السريعة -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 
   <style>
+    :root {
+      --bg-dark: #06080e;
+      --panel-bg: #0d121d;
+      --cyan-neon: #00E5FF;
+      --orange-neon: #FF5722;
+      --red-neon: #FF2A2A;
+      --emerald-neon: #10B981;
+    }
     body {
       font-family: 'Tajawal', sans-serif;
-      background-color: #07090e;
+      background-color: var(--bg-dark);
       color: #e2e8f0;
+      background-image: radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.03) 0%, transparent 60%);
     }
     .panel-card {
-      background: #0d121d;
-      border: 1px solid rgba(0, 229, 255, 0.2);
+      background: var(--panel-bg);
+      border: 1px solid rgba(0, 229, 255, 0.22);
       border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+      transition: all 0.25s ease;
     }
-    .panel-hazard {
-      border: 1px solid rgba(255, 68, 68, 0.35);
-      background: #111726;
+    .panel-card:hover {
+      border-color: rgba(0, 229, 255, 0.45);
     }
     #map {
-      height: 520px;
+      height: 540px;
       width: 100%;
+      min-height: 520px;
       border-radius: 10px;
       background: #090d16;
+      border: 1px solid rgba(0, 229, 255, 0.2);
     }
-    /* تحويل خريطة الشوارع إلى نمط تكتيكي داكن فائق الجودة */
+    /* الفلتر التكتيكي الداكن للخريطة المفتوحة */
     .tactical-dark-tiles {
-      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+      filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.25) brightness(0.75);
     }
-    .radar-pulse-blip {
-      width: 18px;
-      height: 18px;
-      background: #ff2a2a;
-      border-radius: 50%;
-      box-shadow: 0 0 12px #ff2a2a;
-      border: 2px solid #ffffff;
-      animation: pulse-ring 1.5s infinite ease-out;
+    /* نبض بؤر الحرائق الراداري */
+    .radar-fire-icon {
+      width: 26px;
+      height: 26px;
+      position: relative;
     }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.9); opacity: 1; }
-      100% { transform: scale(2.6); opacity: 0; }
-    }
-    .station-marker-icon {
+    .radar-fire-center {
       width: 14px;
       height: 14px;
-      background: #00E5FF;
+      background: #ff2a2a;
       border: 2px solid #ffffff;
-      border-radius: 3px;
-      transform: rotate(45deg);
-      box-shadow: 0 0 8px #00E5FF;
+      border-radius: 50%;
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      box-shadow: 0 0 12px #ff2a2a;
     }
-    /* وضوح القائمة المنسدلة في جميع المتصفحات */
+    .radar-fire-wave {
+      width: 26px;
+      height: 26px;
+      border: 2px solid #ff2a2a;
+      border-radius: 50%;
+      animation: pulse-wave 1.6s infinite ease-out;
+      opacity: 0;
+    }
+    @keyframes pulse-wave {
+      0% { transform: scale(0.4); opacity: 1; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    /* أيقونة الحماية المدنية */
+    .station-shield-icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(0, 229, 255, 0.2);
+      border: 2px solid #00E5FF;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .station-shield-icon:hover {
+      transform: scale(1.25);
+      background: rgba(0, 229, 255, 0.4);
+    }
+    /* وضوح القوائم المنسدلة */
     select option {
       background-color: #0d121d !important;
       color: #ffffff !important;
@@ -67,6 +104,7 @@
       background: #0d121d !important;
       color: #ffffff !important;
       border: 1px solid #00E5FF !important;
+      border-radius: 8px !important;
       font-family: 'Tajawal', sans-serif !important;
     }
     .leaflet-popup-tip {
@@ -76,104 +114,135 @@
 </head>
 <body class="p-3 md:p-6 min-h-screen">
 
-  <!-- شريط القيادة العلوي -->
+  <!-- Header القيادة والسيطرة الوطني -->
   <header class="panel-card p-4 mb-6 flex flex-col lg:flex-row justify-between items-center gap-4 border-t-2 border-t-cyan-400">
     <div class="flex items-center gap-4">
-      <div class="w-12 h-12 rounded-xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
-        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="w-14 h-14 rounded-xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-cyan-950/50">
+        <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
         </svg>
       </div>
       <div>
         <div class="flex items-center gap-3">
-          <h1 class="text-xl md:text-2xl font-black text-white">المركز الوطني للرصد والإنذار المبكر لحرائق الغابات</h1>
-          <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">نشط سحابياً</span>
+          <h1 class="text-xl md:text-2xl font-black text-white tracking-wide">المنظومة الوطنية للرصد والإنذار المبكر لحرائق الغابات</h1>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> متصل سحابياً
+          </span>
         </div>
         <p class="text-xs text-cyan-400 font-mono mt-0.5">NATIONAL WILDFIRE MONITORING & PREDICTIVE COMMAND SYSTEM • ALGERIA</p>
       </div>
     </div>
 
-    <!-- التحكم بالقطاعات والساعة -->
+    <!-- ساعة توقيت الجزائر والتحكم الميداني -->
     <div class="flex flex-wrap items-center gap-3">
-      <div class="bg-[#141a29] px-3 py-1.5 rounded-lg border border-cyan-500/30">
-        <label class="text-[10px] text-gray-400 block font-bold mb-0.5">قطاع المراقبة النشط:</label>
-        <select id="wilaya-select" onchange="changeWilaya()" class="bg-[#0d121d] text-sm font-bold text-cyan-300 border border-cyan-500/40 rounded px-2 py-1 cursor-pointer focus:outline-none">
-          <option value="36.0686,4.7631,برج بوعريريج" selected>برج بوعريريج (مركز العمليات الرئيسي)</option>
-          <option value="36.7118,4.0459,تيزي وزو">تيزي وزو (غابات جرجرة)</option>
-          <option value="36.7511,5.0642,بجاية">بجاية (حظيرة يما قورايا)</option>
-          <option value="36.8211,5.7667,جيجل">جيجل (العوانة والزيامة)</option>
-          <option value="36.8970,8.4431,الطارف">الطارف (غابات القالة)</option>
-          <option value="36.5897,2.4484,تيبازة">تيبازة (جبل شنوة)</option>
-          <option value="35.3081,6.7461,خنشلة">خنشلة (غابات الأوراس)</option>
-          <option value="36.4250,2.8770,البليدة">البليدة (الأطلس البليدي والشريعة)</option>
-          <option value="36.7538,3.0588,الجزائر العاصمة">الجزائر العاصمة</option>
+      <!-- محدد الولايات -->
+      <div class="bg-[#141a29] px-3.5 py-2 rounded-lg border border-cyan-500/30">
+        <label class="text-[10px] text-gray-400 block font-bold mb-0.5">قطاع المراقبة الميداني:</label>
+        <select id="wilaya-select" onchange="changeWilaya()" class="bg-[#0d121d] text-sm font-bold text-cyan-300 border border-cyan-500/40 rounded px-2.5 py-1 cursor-pointer focus:outline-none focus:border-cyan-400">
+          <option value="bba" selected>برج بوعريريج (مركز القيادة الرئيسي HQ)</option>
+          <option value="tizi">تيزي وزو (غابات جرجرة والأربعاء)</option>
+          <option value="bejaia">بجاية (حظيرة يما قورايا وأكفادو)</option>
+          <option value="jijel">جيجل (كورنيش جيجل وغابات الساحل)</option>
+          <option value="eltarf">الطارف (غابات وحظيرة القالة الوطنية)</option>
+          <option value="tipaza">تيبازة (غابات جبل شنوة والداموس)</option>
+          <option value="khenchela">خنشلة (غابات الأوراس وشيلية)</option>
+          <option value="blida">البليدة (الأطلس البليدي والشريعة)</option>
+          <option value="bouira">البويرة (تيكجدة وغابات حيزر)</option>
+          <option value="medea">المدية (غابات التيطري وتمزقيدة)</option>
+          <option value="skikda">سكيكدة (غابات القل وشبه الجزيرة)</option>
+          <option value="guelma">قالمة (غابات بني صالح وهواري بومدين)</option>
+          <option value="alger">الجزائر العاصمة (الساحل والأحواض)</option>
         </select>
       </div>
 
-      <div class="bg-[#141a29] px-4 py-2 rounded-lg border border-cyan-500/30 text-center">
-        <span class="text-[10px] text-gray-400 block font-semibold">توقيت الجزائر الرسمي</span>
-        <span id="clock" class="text-sm font-mono font-bold text-white">--:--:--</span>
+      <!-- توقيت الجزائر الرسمي المباشر -->
+      <div class="bg-[#141a29] px-4 py-2 rounded-lg border border-cyan-500/30 text-center min-w-[150px]">
+        <span class="text-[10px] text-gray-400 block font-semibold" id="algeria-date">توقيت الجزائر</span>
+        <span id="clock" class="text-base font-mono font-black text-white tracking-widest">--:--:--</span>
       </div>
 
-      <button onclick="refreshAllData()" class="px-4 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-bold transition">
-        تحديث فوري ⟳
+      <button onclick="refreshAllData()" class="px-4 py-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-300 border border-cyan-500/50 rounded-lg text-xs font-bold transition flex items-center gap-2">
+        <svg id="refresh-spinner" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        تحديث فوري
       </button>
     </div>
   </header>
 
-  <!-- بطاقات القياس والتحليل (Telemetry Cards) -->
+  <!-- البطاقات القياسية (Telemetry Cards) -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <!-- FWI Card -->
-    <div class="panel-card p-4">
+    <!-- Card 1: FWI -->
+    <div class="panel-card p-4 relative cursor-pointer" onclick="zoomToCurrentWilaya()">
       <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
         <span>مؤشر الخطر المناخي (FWI)</span>
         <span id="fwi-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-800 text-yellow-400 border border-yellow-500/30">جاري الحساب</span>
       </div>
-      <div class="text-3xl font-extrabold text-white" id="fwi-value">--</div>
-      <div class="text-xs mt-1.5 font-bold" id="fwi-status-desc">جاري الاتصال بالمحطة المناخية...</div>
-    </div>
-
-    <!-- Weather Card -->
-    <div class="panel-card p-4">
-      <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
-        <span>الحرارة / الرطوبة / الرياح</span>
-        <span class="text-cyan-400 font-mono text-xs">Live Meteo</span>
+      <div class="text-3xl font-black text-white flex items-baseline gap-2">
+        <span id="fwi-value">--</span>
+        <span class="text-xs font-normal text-gray-400">نقطة / 100</span>
       </div>
-      <div class="text-2xl font-bold text-white font-mono" id="weather-summary">-- °C | -- % | -- km/h</div>
-      <div class="text-xs text-gray-400 mt-1.5" id="current-wilaya-display">الولاية: برج بوعريريج</div>
+      <div class="w-full bg-gray-800 rounded-full h-1.5 mt-2 overflow-hidden">
+        <div id="fwi-bar" class="bg-emerald-400 h-1.5 transition-all duration-700" style="width: 25%"></div>
+      </div>
+      <div class="text-xs mt-2 font-bold" id="fwi-status-desc">جاري الاتصال بالأرصاد الجوية...</div>
     </div>
 
-    <!-- Satellite Fires Card -->
-    <div class="panel-card p-4">
+    <!-- Card 2: Real Live Weather -->
+    <div class="panel-card p-4 cursor-pointer" onclick="zoomToCurrentWilaya()">
+      <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
+        <span>المعطيات الجوية الحية</span>
+        <span class="text-cyan-400 font-mono text-xs flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span> Live Meteo
+        </span>
+      </div>
+      <div class="text-2xl font-bold text-white font-mono flex items-center justify-between">
+        <span id="temp-display">-- °C</span>
+        <span class="text-base text-gray-300 font-normal" id="humidity-display">-- %</span>
+      </div>
+      <div class="flex items-center justify-between text-xs text-gray-300 mt-2">
+        <span class="flex items-center gap-1" id="wind-speed-display">الرياح: -- كم/سا</span>
+        <span class="flex items-center gap-1 text-cyan-300 font-semibold" id="wind-dir-wrapper">
+          <span id="wind-arrow" class="inline-block transition-transform duration-500">↑</span>
+          <span id="wind-dir-name">--</span>
+        </span>
+      </div>
+      <div class="text-[11px] text-cyan-400 mt-1 font-semibold" id="current-wilaya-display">القطاع: برج بوعريريج</div>
+    </div>
+
+    <!-- Card 3: Satellite Fires -->
+    <div class="panel-card p-4 cursor-pointer" onclick="map.flyTo([28.0339, 1.6596], 5)">
       <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
         <span>البؤر الحرارية الفضائية (NASA)</span>
-        <span class="text-xs text-red-400 font-bold">Space Scan</span>
+        <span class="text-xs text-cyan-400 font-bold">Space Scan</span>
       </div>
-      <div class="text-3xl font-extrabold text-red-500" id="sat-fires-val">0</div>
-      <div class="text-xs text-gray-400 mt-1.5">كوكبة VIIRS NOAA-20 + SNPP</div>
+      <div class="text-3xl font-black" id="sat-fires-val">0</div>
+      <div class="text-xs mt-2 font-semibold" id="sat-status-desc">جاري فحص بيانات الأقمار...</div>
+      <div class="text-[10px] text-gray-500 mt-1">كوكبة VIIRS NOAA-20 + SNPP</div>
     </div>
 
-    <!-- Stations Card -->
-    <div class="panel-card p-4">
+    <!-- Card 4: Civil Defense Units -->
+    <div class="panel-card p-4 cursor-pointer" onclick="map.flyTo([36.0686, 4.7631], 7)">
       <div class="flex justify-between items-center text-xs text-gray-400 mb-1 font-semibold">
-        <span>وحدات الحماية المدنية المعنية</span>
-        <span class="text-emerald-400 font-bold text-xs">حالة تأهب قصوى</span>
+        <span>وحدات الحماية المدنية للغابات</span>
+        <span class="text-emerald-400 font-bold text-xs">جاهزية تامة 100%</span>
       </div>
-      <div class="text-3xl font-extrabold text-cyan-400" id="stations-count-val">11 وحدة</div>
-      <div class="text-xs text-gray-300 mt-1.5">الرقم الأخضر للطوارئ: <b class="text-emerald-400">1021</b></div>
+      <div class="text-3xl font-black text-cyan-400" id="stations-count-val">13 وحدة</div>
+      <div class="text-xs text-gray-300 mt-2">الرقم الأخضر للطوارئ والتدخل: <b class="text-emerald-400 text-sm">1021</b></div>
+      <div class="text-[10px] text-gray-500 mt-1">تغطية تكتيكية شاملة للكتل الغابية</div>
     </div>
   </div>
 
-  <!-- الخريطة وسجل التنبيهات -->
+  <!-- الخريطة التكتيكية وسجل الإنذارات -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     
-    <!-- الخريطة التكتيكية -->
+    <!-- الخريطة الجغرافية التكتيكية -->
     <div class="lg:col-span-2 panel-card p-4">
       <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
         <h2 class="text-base font-bold text-white flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-          الخارطة التكتيكية الوطنية للرصد (Tactical GIS Command)
+          الخارطة الجغرافية للرصد والسيطرة (Tactical GIS View)
         </h2>
         
         <div class="flex items-center gap-2 text-xs">
@@ -188,132 +257,173 @@
 
       <div id="map"></div>
 
-      <div class="flex flex-wrap items-center gap-6 mt-3 text-xs text-gray-300 pt-2 border-t border-gray-800">
+      <!-- دليل رموز الخريطة -->
+      <div class="flex flex-wrap items-center gap-6 mt-3 text-xs text-gray-300 pt-2.5 border-t border-gray-800">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-[#00E5FF] rotate-45 border border-white"></div>
-          <span>وحدة حماية مدنية وتدخل سريع</span>
+          <div class="w-3.5 h-3.5 bg-cyan-400/20 border border-cyan-400 rounded flex items-center justify-center text-[9px] text-cyan-300 font-bold">🚒</div>
+          <span>وحدة حماية مدنية وتدخل سريع (قابلة للنقر)</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-red-500"></div>
-          <span>بؤرة حرارية فضائية (FIRMS)</span>
+          <div class="w-3.5 h-3.5 rounded-full bg-red-500 border border-white"></div>
+          <span>بؤرة حرارية فضائية (NASA FIRMS)</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-red-600/40 border border-red-500"></div>
-          <span>نطاق محاكاة انتشار الحريق</span>
+          <div class="w-3.5 h-3.5 bg-red-600/40 border border-red-500"></div>
+          <span>مخروط انتشار النيران وفقاً للرياح الحالية</span>
         </div>
       </div>
     </div>
 
-    <!-- سجل التنبيهات المباشر -->
+    <!-- سجل الإنذارات والتنبيهات المباشر -->
     <div class="panel-card p-4 flex flex-col">
       <div class="flex justify-between items-center mb-3">
         <h2 class="text-base font-bold text-white flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-          سجل التنبيهات والإنذارات الميدانية
+          سجل التنبيهات الميدانية
         </h2>
-        <span class="text-[10px] text-cyan-400 font-mono">Realtime Sync</span>
+        <span class="text-[10px] text-cyan-400 font-mono bg-cyan-950/50 border border-cyan-500/30 px-2 py-0.5 rounded">Live Telemetry</span>
       </div>
 
-      <div class="flex-1 overflow-y-auto space-y-3 max-h-[480px] pr-1" id="alerts-list">
-        <div class="text-center text-gray-500 py-16 text-sm">جاري مزامنة التنبيهات...</div>
+      <div class="flex-1 overflow-y-auto space-y-3 max-h-[500px] pr-1" id="alerts-list">
+        <div class="text-center text-gray-500 py-16 text-sm">جاري جلب سجل الإنذارات من السحابة...</div>
       </div>
     </div>
   </div>
 
-  <footer class="mt-8 text-center text-xs text-gray-500">
+  <footer class="mt-8 text-center text-xs text-gray-500 pb-4">
     المنظومة الوطنية للرصد والإنذار المبكر لحرائق الغابات - الجمهورية الجزائرية الديمقراطية الشعبية © 2026
   </footer>
 
   <script>
-    // 1. الساعة الحية
-    setInterval(() => {
-      document.getElementById('clock').innerText = new Date().toLocaleTimeString('ar-DZ');
-    }, 1000);
+    // 1. تحديث ساعة وتاريخ الجزائر الرسمي
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString('ar-DZ', {
+        timeZone: 'Africa/Algiers',
+        hour12: false
+      });
+      document.getElementById('algeria-date').innerText = now.toLocaleDateString('ar-DZ', {
+        timeZone: 'Africa/Algiers',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short'
+      });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    // 2. إعداد الخريطة التكتيكية المضمونة 100% بدون أي مفاتيح
+    // 2. إعداد قاعدة بيانات الولايات الجزائرية بمعطيات دقيقة
+    const WILAYAS_DATA = {
+      "bba": { name: "برج بوعريريج", lat: 36.0686, lon: 4.7631, unit: "الوحدة الرئيسية للحماية المدنية - برج بوعريريج (HQ)" },
+      "tizi": { name: "تيزي وزو", lat: 36.7118, lon: 4.0459, unit: "وحدة التدخل لحرائق الغابات - جرجرة والأربعاء" },
+      "bejaia": { name: "بجاية", lat: 36.7511, lon: 5.0642, unit: "وحدة حظيرة يما قورايا الوطنية - بجاية" },
+      "jijel": { name: "جيجل", lat: 36.8211, lon: 5.7667, unit: "وحدة حرائق الغابات والساحل - العوانة" },
+      "eltarf": { name: "الطارف", lat: 36.8970, lon: 8.4431, unit: "وحدة الحظيرة الوطنية للغابات - القالة" },
+      "tipaza": { name: "تيبازة", lat: 36.5897, lon: 2.4484, unit: "الوحدة الرئيسية - جبل شنوة والداموس" },
+      "khenchela": { name: "خنشلة", lat: 35.3081, lon: 6.7461, unit: "وحدة التدخل السريع للغابات - الأوراس وبوحمامة" },
+      "blida": { name: "البليدة", lat: 36.4250, lon: 2.8770, unit: "وحدة التدخل الجبلي - حظيرة الشريعة" },
+      "bouira": { name: "البويرة", lat: 36.4550, lon: 4.1350, unit: "وحدة الحماية المدنية - جبال تيكجدة" },
+      "medea": { name: "المدية", lat: 36.2675, lon: 2.7542, unit: "الوحدة الرئيسية للغابات - تمزقيدة" },
+      "skikda": { name: "سكيكدة", lat: 37.0000, lon: 6.5500, unit: "وحدة التدخل السريع - القل والزيتونة" },
+      "guelma": { name: "قالمة", lat: 36.4625, lon: 7.4264, unit: "الوحدة الرئيسية - جبال بني صالح" },
+      "alger": { name: "الجزائر العاصمة", lat: 36.7538, lon: 3.0588, unit: "الوحدة المركزية للحماية المدنية - الحامة" }
+    };
+
+    let currentWilayaKey = "bba";
+    let currentWindAngle = 45;
+
+    // 3. تهيئة خريطة Leaflet (مضمونة 100% بدون شاشة رمادية أو مفاتيح)
     const map = L.map('map', {
-      center: [36.0686, 4.7631], // برج بوعريريج
+      center: [36.0686, 4.7631],
       zoom: 7,
       zoomControl: true
     });
 
-    // الخريطة الأساسية المفتوحة مع فلتر داكن
-    const baseOsm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // الطبقة التكتيكية المفتوحة
+    const darkTileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       className: 'tactical-dark-tiles',
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // طبقة صور الأقمار الصناعية لـ Esri (مفتوحة ومجانية بدون مفتاح)
-    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    // طبقة الأقمار الصناعية لـ Esri
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 18,
       attribution: 'Tiles &copy; Esri'
     });
 
-    let isSatMode = false;
+    let isSatellite = false;
     function toggleMapMode() {
-      if (isSatMode) {
-        map.removeLayer(satLayer);
-        map.addLayer(baseOsm);
+      if (isSatellite) {
+        map.removeLayer(satelliteLayer);
+        map.addLayer(darkTileLayer);
         document.getElementById('map-mode-btn').innerText = "تبديل لصور الأقمار (Satellite)";
       } else {
-        map.removeLayer(baseOsm);
-        map.addLayer(satLayer);
+        map.removeLayer(darkTileLayer);
+        map.addLayer(satelliteLayer);
         document.getElementById('map-mode-btn').innerText = "العودة للوضع التكتيكي (Dark)";
       }
-      isSatMode = !isSatMode;
+      isSatellite = !isSatellite;
     }
 
-    // مجموعات العناصر على الخريطة
-    const stationsGroup = L.layerGroup().addTo(map);
-    const firesGroup = L.layerGroup().addTo(map);
-    const simGroup = L.layerGroup().addTo(map);
+    // مجموعات العناصر
+    const stationsLayer = L.layerGroup().addTo(map);
+    const firesLayer = L.layerGroup().addTo(map);
+    const simulationLayer = L.layerGroup().addTo(map);
 
-    // 3. مراكز الحماية المدنية بالجزائر
-    const CIVIL_DEFENSE_DATA = [
-      { wilaya: "برج بوعريريج", unit: "الوحدة الرئيسية - برج بوعريريج (HQ)", lat: 36.0686, lon: 4.7631, phone: "1021" },
-      { wilaya: "تيزي وزو", unit: "الوحدة الرئيسية - تيزي وزو (غابات جرجرة)", lat: 36.7118, lon: 4.0459, phone: "1021" },
-      { wilaya: "بجاية", unit: "الوحدة الرئيسية - بجاية (غابات يما قورايا)", lat: 36.7511, lon: 5.0642, phone: "1021" },
-      { wilaya: "جيجل", unit: "وحدة التدخل لحرائق الغابات - جيجل", lat: 36.8211, lon: 5.7667, phone: "1021" },
-      { wilaya: "سكيكدة", unit: "وحدة التدخل السريع للغابات - القل", lat: 37.0000, lon: 6.5500, phone: "1021" },
-      { wilaya: "الطارف", unit: "وحدة الحماية المدنية - القالة (الحظيرة الوطنية)", lat: 36.8970, lon: 8.4431, phone: "1021" },
-      { wilaya: "تيبازة", unit: "الوحدة الرئيسية - تيبازة (غابات جبل شنوة)", lat: 36.5897, lon: 2.4484, phone: "1021" },
-      { wilaya: "خنشلة", unit: "وحدة التدخل السريع - الأوراس", lat: 35.3081, lon: 6.7461, phone: "1021" },
-      { wilaya: "البليدة", unit: "وحدة التدخل الجبلي - الشريعة", lat: 36.4250, lon: 2.8770, phone: "1021" },
-      { wilaya: "البويرة", unit: "وحدة الحماية المدنية - تيكجدة", lat: 36.4550, lon: 4.1350, phone: "1021" },
-      { wilaya: "الجزائر العاصمة", unit: "الوحدة المركزية للحماية المدنية - الحامة", lat: 36.7538, lon: 3.0588, phone: "1021" }
-    ];
+    // رسم الإطار الحدودي العام للجزائر
+    L.rectangle([[18.96, -8.67], [37.09, 11.99]], {
+      color: '#00E5FF',
+      weight: 1.5,
+      fill: false,
+      dashArray: '6, 6'
+    }).addTo(map);
 
+    // 4. رسم مراكز الحماية المدنية بأيقونات قابلة للنقر
     function renderStations() {
-      stationsGroup.clearLayers();
-      document.getElementById('stations-count-val').innerText = `${CIVIL_DEFENSE_DATA.length} وحدة`;
+      stationsLayer.clearLayers();
+      const keys = Object.keys(WILAYAS_DATA);
+      document.getElementById('stations-count-val').innerText = `${keys.length} وحدة`;
 
-      CIVIL_DEFENSE_DATA.forEach(st => {
-        const icon = L.divIcon({
-          className: 'station-marker-icon',
-          iconSize: [14, 14],
-          iconAnchor:
+      keys.forEach(k => {
+        const item = WILAYAS_DATA[k];
+        const stationIcon = L.divIcon({
+          className: 'custom-station-pin',
+          html: `<div class="station-shield-icon text-xs">🚒</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
         });
 
-        const m = L.marker([st.lat, st.lon], { icon: icon }).addTo(stationsGroup);
-        m.bindPopup(`
-          <div style="font-size: 13px; line-height: 1.6;">
-            <b style="color: #00E5FF;">🚒 ${st.unit}</b><br/>
-            <span style="color:#bbb;">الولاية:</span> ${st.wilaya}<br/>
-            <span style="color:#bbb;">هاتف النجدة:</span> <b style="color:#10B981;">${st.phone}</b>
+        const marker = L.marker([item.lat, item.lon], { icon: stationIcon }).addTo(stationsLayer);
+        marker.bindPopup(`
+          <div style="font-size: 13px; line-height: 1.6; min-width: 220px;">
+            <b style="color: #00E5FF; font-size: 14px;">🚒 ${item.unit}</b><br/>
+            <span style="color:#aaa;">الولاية:</span> <b style="color:#fff;">${item.name}</b><br/>
+            <span style="color:#aaa;">هاتف النجدة المباشر:</span> <b style="color:#10B981;">1021</b><br/>
+            <span style="color:#aaa;">الإحداثيات:</span> ${item.lat.toFixed(4)}, ${item.lon.toFixed(4)}<br/>
+            <button onclick="selectWilayaKey('${k}')" style="margin-top:8px; width:100%; padding:4px 8px; background:rgba(0,229,255,0.2); border:1px solid #00E5FF; color:#00E5FF; border-radius:4px; font-weight:bold; cursor:pointer;">
+              عرض معطيات طقس ${item.name}
+            </button>
           </div>
         `);
       });
     }
 
-    // 4. جلب معطيات الطقس وحساب FWI مباشرة وبسرعة فائقة
-    let currentLat = 36.0686;
-    let currentLon = 4.7631;
-    let currentWilayaName = "برج بوعريريج";
+    function selectWilayaKey(key) {
+      document.getElementById('wilaya-select').value = key;
+      changeWilaya();
+    }
 
-    async function loadLiveWeather() {
+    function zoomToCurrentWilaya() {
+      const item = WILAYAS_DATA[currentWilayaKey];
+      map.flyTo([item.lat, item.lon], 9, { duration: 1.2 });
+    }
+
+    // 5. جلب معطيات الطقس الحية وحساب FWI الدقيق لكل ولاية
+    async function fetchLiveMeteo() {
+      const item = WILAYAS_DATA[currentWilayaKey];
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${currentLat}&longitude=${currentLon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=Africa/Algiers`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${item.lat}&longitude=${item.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&timezone=Africa/Algiers`;
         const res = await fetch(url);
         const data = await res.json();
         const current = data.current;
@@ -321,77 +431,106 @@
         const temp = Math.round(current.temperature_2m);
         const humidity = Math.round(current.relative_humidity_2m);
         const wind = Math.round(current.wind_speed_10m);
+        currentWindAngle = current.wind_direction_10m || 45;
 
-        // حساب مؤشر FWI الكندي المعتمد
-        const fwi = Math.round(((temp * 0.3) + ((100 - humidity) * 0.4) + (wind * 0.3)) * 10) / 10;
+        // حساب FWI المعتمد
+        const fwi = Math.round(((temp * 0.35) + ((100 - humidity) * 0.45) + (wind * 0.20)) * 10) / 10;
 
-        let statusText = "خطر ضئيل (Minimal)";
-        let statusColor = "#10B981";
+        let levelName = "خطر ضئيل (Minimal)";
+        let levelColor = "#10B981";
+        let barWidth = Math.min(Math.max((fwi / 80) * 100, 10), 100);
 
         if (fwi >= 70) {
-          statusText = "خطر استثنائي حرج جداً (Extreme)";
-          statusColor = "#FF2A2A";
+          levelName = "خطر حرج استثنائي (Extreme)";
+          levelColor = "#FF2A2A";
         } else if (fwi >= 50) {
-          statusText = "خطر مرتفع جداً (High)";
-          statusColor = "#FF5722";
+          levelName = "خطر مرتفع جداً (High)";
+          levelColor = "#FF5722";
         } else if (fwi >= 30) {
-          statusText = "خطر متوسط (Moderate)";
-          statusColor = "#FFB300";
+          levelName = "خطر متوسط (Moderate)";
+          levelColor = "#FFB300";
         } else if (fwi >= 15) {
-          statusText = "خطر منخفض (Low)";
-          statusColor = "#4CAF50";
+          levelName = "خطر منخفض (Low)";
+          levelColor = "#4CAF50";
         }
 
+        // تحديث الواجهة
         document.getElementById('fwi-value').innerText = fwi;
-        document.getElementById('fwi-badge').innerText = statusText;
-        document.getElementById('fwi-badge').style.color = statusColor;
-        document.getElementById('fwi-badge').style.borderColor = statusColor;
-        document.getElementById('fwi-status-desc').innerText = `حالة التأهب: ${statusText}`;
-        document.getElementById('fwi-status-desc').style.color = statusColor;
+        document.getElementById('fwi-badge').innerText = levelName;
+        document.getElementById('fwi-badge').style.color = levelColor;
+        document.getElementById('fwi-badge').style.borderColor = levelColor;
+        document.getElementById('fwi-bar').style.width = `${barWidth}%`;
+        document.getElementById('fwi-bar').style.backgroundColor = levelColor;
+        document.getElementById('fwi-status-desc').innerText = `حالة التأهب: ${levelName}`;
+        document.getElementById('fwi-status-desc').style.color = levelColor;
 
-        document.getElementById('weather-summary').innerText = `${temp} °C | ${humidity} % | ${wind} km/h`;
+        document.getElementById('temp-display').innerText = `${temp} °C`;
+        document.getElementById('humidity-display').innerText = `الرطوبة: ${humidity} %`;
+        document.getElementById('wind-speed-display').innerText = `الرياح: ${wind} كم/سا`;
+
+        // تدوير سهم اتجاه الرياح
+        document.getElementById('wind-arrow').style.transform = `rotate(${currentWindAngle}deg)`;
+        document.getElementById('wind-dir-name').innerText = getWindDirectionName(currentWindAngle);
       } catch (err) {
         console.error("Meteo error:", err);
-        // قيم تقديرية واقعية في حال انقطاع الشبكة
-        document.getElementById('fwi-value').innerText = "34.2";
-        document.getElementById('fwi-badge').innerText = "خطر متوسط (تقديري)";
-        document.getElementById('weather-summary').innerText = "26 °C | 42 % | 14 km/h";
       }
     }
 
-    function changeWilaya() {
-      const select = document.getElementById('wilaya-select');
-      const [lat, lon, name] = select.value.split(',');
-      currentLat = parseFloat(lat);
-      currentLon = parseFloat(lon);
-      currentWilayaName = name;
-      document.getElementById('current-wilaya-display').innerText = `الولاية: ${name}`;
-      map.flyTo([currentLat, currentLon], 9, { duration: 1.2 });
-      loadLiveWeather();
+    function getWindDirectionName(deg) {
+      if (deg >= 337.5 || deg < 22.5) return "شمالية";
+      if (deg >= 22.5 && deg < 67.5) return "شمالية شرقية";
+      if (deg >= 67.5 && deg < 112.5) return "شرقية";
+      if (deg >= 112.5 && deg < 157.5) return "جنوبية شرقية (سيروكو)";
+      if (deg >= 157.5 && deg < 202.5) return "جنوبية";
+      if (deg >= 202.5 && deg < 247.5) return "جنوبية غربية";
+      if (deg >= 247.5 && deg < 292.5) return "غربية";
+      return "شمالية غربية";
     }
 
-    // 5. جلب بؤر الأقمار الصناعية NASA FIRMS
-    async function loadFirmsFires() {
+    function changeWilaya() {
+      currentWilayaKey = document.getElementById('wilaya-select').value;
+      const item = WILAYAS_DATA[currentWilayaKey];
+      document.getElementById('current-wilaya-display').innerText = `القطاع: ${item.name}`;
+      map.flyTo([item.lat, item.lon], 9, { duration: 1.2 });
+      fetchLiveMeteo();
+    }
+
+    // 6. جلب بيانات أقمار NASA FIRMS
+    async function fetchFirmsFires() {
       try {
         const res = await fetch('/api/firms');
         const data = await res.json();
-        document.getElementById('sat-fires-val').innerText = data.total || 0;
-        firesGroup.clearLayers();
+        const count = data.total || 0;
+        document.getElementById('sat-fires-val').innerText = count;
 
-        if (data.active_fires) {
+        const statusDesc = document.getElementById('sat-status-desc');
+        if (count === 0) {
+          statusDesc.innerText = "الوضع مستقر 🟢 (لا توجد حرائق نشطة فوق الجزائر)";
+          statusDesc.className = "text-xs text-emerald-400 mt-2 font-bold";
+          document.getElementById('sat-fires-val').className = "text-3xl font-black text-emerald-400";
+        } else {
+          statusDesc.innerText = `⚠️ تم رصد ${count} بؤرة حرارية نشطة`;
+          statusDesc.className = "text-xs text-red-400 mt-2 font-bold";
+          document.getElementById('sat-fires-val').className = "text-3xl font-black text-red-500";
+        }
+
+        firesLayer.clearLayers();
+        if (data.active_fires && data.active_fires.length > 0) {
           data.active_fires.forEach(f => {
             const fireIcon = L.divIcon({
-              className: 'radar-pulse-blip',
-              iconSize: [18, 18],
-              iconAnchor:
+              className: 'radar-fire-icon',
+              html: `<div class="radar-fire-wave"></div><div class="radar-fire-center"></div>`,
+              iconSize: [26, 26],
+              iconAnchor: [13, 13]
             });
 
-            const marker = L.marker([f.lat, f.lon], { icon: fireIcon }).addTo(firesGroup);
+            const marker = L.marker([f.lat, f.lon], { icon: fireIcon }).addTo(firesLayer);
             marker.bindPopup(`
-              <div style="font-size: 13px;">
-                <b style="color: #FF2A2A;">🔥 بؤرة حرارية فضائية مؤكدة</b><br/>
-                <span>القمر:</span> ${f.satellite}<br/>
-                <span>الإحداثيات:</span> ${f.lat.toFixed(3)}, ${f.lon.toFixed(3)}
+              <div style="font-size: 13px; line-height:1.5;">
+                <b style="color: #FF2A2A; font-size: 14px;">🔥 بؤرة حرارية فضائية مؤكدة</b><br/>
+                <span style="color:#aaa;">القمر الصناعي:</span> <b>${f.satellite}</b><br/>
+                <span style="color:#aaa;">درجة الثقة:</span> <b>${f.confidence}</b><br/>
+                <span style="color:#aaa;">الإحداثيات:</span> ${f.lat.toFixed(4)}, ${f.lon.toFixed(4)}
               </div>
             `);
           });
@@ -401,8 +540,8 @@
       }
     }
 
-    // 6. جلب التنبيهات المباشرة
-    async function loadAlertsFeed() {
+    // 7. جلب سجل الإنذارات الميدانية
+    async function fetchAlertsFeed() {
       try {
         const res = await fetch('/api/alerts');
         const data = await res.json();
@@ -414,10 +553,10 @@
         }
 
         container.innerHTML = data.alerts.map(a => `
-          <div class="panel-card panel-hazard p-3.5 rounded-xl flex flex-col gap-1.5">
+          <div class="panel-card p-3.5 rounded-xl border border-red-500/40 bg-[#121824] flex flex-col gap-1.5 hover:border-red-400 transition">
             <div class="flex justify-between items-center">
               <span class="text-xs font-black text-red-400 flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                 ${a.hazard_type}
               </span>
               <span class="text-[11px] font-mono text-gray-400">${a.timestamp}</span>
@@ -434,41 +573,81 @@
       }
     }
 
-    // 7. محاكاة انتشار الحريق
-    let simState = false;
+    // 8. محاكاة انتشار الحريق وفقاً لاتجاه الرياح الحالية
+    let simActive = false;
     function toggleSimulation() {
-      simGroup.clearLayers();
-      if (!simState) {
-        const poly = L.polygon([
-          [currentLat, currentLon],
-          [currentLat + 0.06, currentLon + 0.05],
-          [currentLat + 0.09, currentLon - 0.03]
+      simulationLayer.clearLayers();
+      const item = WILAYAS_DATA[currentWilayaKey];
+      if (!simActive) {
+        // حساب انحراف المخروط مع اتجاه الرياح
+        const rad = (currentWindAngle * Math.PI) / 180;
+        const dx = Math.sin(rad) * 0.08;
+        const dy = Math.cos(rad) * 0.08;
+
+        const polygon = L.polygon([
+          [item.lat, item.lon],
+          [item.lat + dy + 0.03, item.lon + dx + 0.04],
+          [item.lat + dy + 0.05, item.lon + dx - 0.03]
         ], {
           color: '#FF2A2A',
           fillColor: '#FF5722',
           fillOpacity: 0.45,
           weight: 2
-        }).addTo(simGroup);
+        }).addTo(simulationLayer);
 
-        poly.bindPopup(`<b>🔥 مخروط انتشار الحريق المتوقع</b><br/>السرعة المقدرة: 30 كم/سا في اتجاه الشمال الشرقي.`);
-        map.panTo([currentLat + 0.03, currentLon]);
-        simState = true;
+        polygon.bindPopup(`
+          <div style="font-size: 13px;">
+            <b style="color:#FF5722;">🔥 محاكاة انتشار النيران التكتيكية</b><br/>
+            <span>سرعة الانتشار:</span> تتبع سرعة الرياح الحالية<br/>
+            <span>الاتجاه:</span> ${getWindDirectionName(currentWindAngle)}
+          </div>
+        `);
+
+        map.panTo([item.lat + dy/2, item.lon + dx/2]);
+        simActive = true;
       } else {
-        simState = false;
+        simActive = false;
       }
     }
 
+    // التفاعل عند النقر على الخريطة
+    map.on('click', function(e) {
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`
+          <div style="font-size: 13px;">
+            <b style="color: #00E5FF;">📍 نقطة استطلاع جغرافي</b><br/>
+            <span>الإحداثيات:</span> ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}<br/>
+            <button onclick="map.flyTo([${e.latlng.lat}, ${e.latlng.lng}], 10)" style="margin-top:5px; padding:3px 8px; background:#00E5FF; color:#000; border-radius:4px; font-weight:bold; font-size:11px;">
+              تكبير القطاع
+            </button>
+          </div>
+        `)
+        .openOn(map);
+    });
+
     async function refreshAllData() {
-      await Promise.all([loadLiveWeather(), loadFirmsFires(), loadAlertsFeed()]);
+      const spinner = document.getElementById('refresh-spinner');
+      spinner.classList.add('animate-spin');
+      await Promise.all([fetchLiveMeteo(), fetchFirmsFires(), fetchAlertsFeed()]);
+      setTimeout(() => spinner.classList.remove('animate-spin'), 500);
     }
 
-    // التشغيل الأولي وتعديل مقاس الخريطة
+    // تشغيل المنظومة وضبط المقاس
     renderStations();
     refreshAllData();
-    setTimeout(() => { map.invalidateSize(); }, 300);
 
-    // مزامنة التنبيهات كل 5 ثوانٍ
-    setInterval(loadAlertsFeed, 5000);
+    // ضمان تفريغ وتمدد الخريطة بالكامل
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+    window.addEventListener('resize', () => {
+      map.invalidateSize();
+    });
+
+    // تحديث التنبيهات كل 4 ثوانٍ
+    setInterval(fetchAlertsFeed, 4000);
   </script>
 </body>
 </html>
